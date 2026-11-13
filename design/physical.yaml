@@ -1,0 +1,14 @@
+# The types that pass between the parts belong to the part that describes them: each is recorded here so
+# that the checks know them as structures of the design, and hold every other part to using them as given.
+shader.vanilla:
+  - shader.vanilla
+  - shader.vanilla.Game
+  - shader.vanilla.ResourceFormat
+  - shader.vanilla.ShaderFile
+  - shader.vanilla.Texture
+  - shader.vanilla.Pixel
+shader.effects:
+  - shader.effects
+  - shader.effects.Effect
+  - shader.effects.Attachment
+  - shader.effects.Position
