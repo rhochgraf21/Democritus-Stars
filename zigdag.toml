@@ -1,7 +1,7 @@
 [settings]
 ruleset = 1
 tests = ["tests"]
-test_command = "uv run pytest --junitxml=.zigdag/pytest.xml"
+test_command = ".venv/bin/python -m pytest --junitxml=.zigdag/pytest.xml"
 
 [adapters]
 default = "python"

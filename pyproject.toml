@@ -9,7 +9,7 @@ dependencies = ["deal", "pillow"]
 dev = ["pytest", "hypothesis", "zigdag"]
 
 [tool.uv.sources]
-zigdag = { path = "..", editable = true }
+zigdag = { path = "..", editable = false }
 
 [build-system]
 requires = ["hatchling"]

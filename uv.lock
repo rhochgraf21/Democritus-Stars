@@ -290,7 +290,7 @@ requires-dist = [
 dev = [
     { name = "hypothesis" },
     { name = "pytest" },
-    { name = "zigdag", editable = "../" },
+    { name = "zigdag", directory = "../" },
 ]
 
 [[package]]
@@ -376,7 +376,7 @@ wheels = [
 [[package]]
 name = "zigdag"
 version = "0.0.1"
-source = { editable = "../" }
+source = { directory = "../" }
 dependencies = [
     { name = "deal" },
     { name = "ruamel-yaml" },
