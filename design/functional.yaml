@@ -1,0 +1,170 @@
+frs:
+  shader:
+    statements:
+      build: The shader shall build a Minecraft resource pack.
+
+  # The game's own shaders and textures are the base everything attaches to. Mojang changes them with each
+  # version, so this is the one part that knows a version.
+  shader.vanilla:
+    serves: [change-the-look.version-port]
+    statements:
+      read: The vanilla shall read the shaders and the textures of one Minecraft version.
+
+  shader.seasons:
+    serves: [enjoy-the-view.artificial-scenes]
+    statements:
+      colours: The seasons shall give the grass, foliage and dry foliage colour maps for one season of spring, summer, autumn and winter.
+
+  # terrain.vsh in 26.3 is given a position, a colour, a texture coordinate and a light level: nothing says
+  # which block a surface belongs to. The texture is the only thing the pack controls that reaches the shader.
+  # The vertex stage reads the mark from the block texture that the terrain program already has. A vertex
+  # sits on the corner of its texture, so which texel to read there is to be worked out when plants is built.
+  shader.markers:
+    serves: [enjoy-the-view.artificial-scenes]
+    statements:
+      mark: The markers shall give the textures of water, leaves and plants an alpha value that tells the shaders what the surface is.
+
+  shader.effects:
+    serves: [enjoy-the-view.artificial-scenes, enjoy-the-view.slow-frames]
+    statements:
+      describe: The effects shall describe each change to the look as GLSL code with the vanilla shader that the code attaches to.
+      # The reference scene: a new world from seed 1, standing at the spawn point at noon in clear weather,
+      # render distance 12 chunks, window at full screen. The frame rate is the one the game's F3 screen
+      # shows, read once with the pack off and once with it on.
+      frame-rate: The effects shall not reduce the frame rate of the reference scene by more than 10 %.
+
+  # The sky is drawn as one flat colour with fog toward the edge of a disc. The water reflects the same
+  # gradient, so the horizon in the water meets the horizon in the sky.
+  shader.effects.sky:
+    statements:
+      gradient: The sky shall move the colour of the sky toward the fog colour by the height of the direction of view.
+
+  # lightmap.fsh draws a 16 by 16 texture once a frame, and every surface reads its light from it. A change
+  # there costs nothing per pixel. It is also where shadows live: terrain.vsh has no surface normal and no
+  # sun direction, so the sky light level is all a surface knows about being in shade.
+  shader.effects.lighting:
+    statements:
+      colour: The lighting shall map each block light level and each sky light level to a colour in the light map of the game.
+      shade: While the sky is bright, the lighting shall give sky light levels below 15 a bluer colour than sky light level 15.
+      warm: The lighting shall not give block light a colour bluer than the vanilla block light.
+
+  shader.effects.fog:
+    statements:
+      density: The fog shall move the colour of each terrain surface toward the fog colour by a density that grows with the distance to the surface and falls with the height of the surface.
+      no-wall: The fog shall not change by more than 1 % between two surfaces 1 block apart.
+
+  # The cloud pass, with the game's own cloud cells. It is drawn after the stars, it is told where the
+  # clouds have drifted to and what colour the weather makes them, and the game hides it behind terrain.
+  # A layer drawn in sky.fsh was the other way: that shader is told no time, so its clouds could not move.
+  shader.effects.clouds:
+    statements:
+      puff: The clouds shall draw each cloud cell of the game as a puff that fades to nothing at the edge of the puff.
+      overlap: The clouds shall not leave a gap between the puffs of two cells that touch.
+
+  # stars.vsh is told no time, so a star cannot twinkle. The number of a star is all that tells one from another.
+  shader.effects.stars:
+    statements:
+      vary: The stars shall give each star a brightness and a colour from the number of the star.
+
+  shader.effects.water:
+    statements:
+      reflect: The water shall move the colour of each water surface toward the colour of the sky by the angle of view to the surface.
+
+  shader.effects.ripples:
+    statements:
+      waves: The ripples shall change the direction that each water surface reflects with moving waves.
+
+  shader.effects.plants:
+    statements:
+      sway: The plants shall move each vertex of leaves and plants with wind.
+      # Further than this and leaves pull away from their branches.
+      reach: The plants shall not move a vertex by more than 10 % of a block.
+
+  # The game tells no shader that it is raining. The light map's sky factor drops and the fog colour turns
+  # grey, so the weather is an estimate from those two, which the fog and the clouds use.
+  shader.effects.weather:
+    statements:
+      estimate: The weather shall estimate how overcast the sky is from the fog colour and the sky light of the game.
+
+  shader.composer:
+    serves: [change-the-look.version-port]
+    statements:
+      join: The composer shall join the effects onto the vanilla shaders.
+      # A place is a line of the vanilla shader's own text. Lacking or repeated, the composer cannot know
+      # where the code goes, and a wrong guess is a pack the game rejects.
+      missing-place: If a vanilla shader lacks the place that an effect attaches to, then the composer shall name the effect and the place.
+      repeated-place: If a vanilla shader holds the place that an effect attaches to more than once, then the composer shall name the effect and the place.
+
+  # One shader error and the game switches the whole pack off, so every variant the game compiles is
+  # compiled here first.
+  shader.validator:
+    serves: [enjoy-the-view.rejected-pack]
+    statements:
+      compile: The validator shall compile each built shader under each combination of the defines that the shader tests.
+
+  shader.pack:
+    serves: [change-the-look.slow-feedback]
+    statements:
+      write: The pack shall write the built shaders and textures as a resource pack in the resource pack folder of the game.
+
+  shader.command:
+    serves: [change-the-look.slow-feedback]
+    statements:
+      run: The command shall build the pack for one season.
+      quick: The command shall not take more than 5 seconds to build the pack.
+
+constraints:
+  # Each vanilla program is given a fixed set of values by the game. Code that asks for one the program is
+  # not given compiles, and then reads nothing in the game. Staying inside the set needs no trial in the game.
+  program-values:
+    on: shader.effects
+    serves: [enjoy-the-view.rejected-pack]
+    statement: The effects shall use only the values that the game gives to the vanilla program that the code attaches to.
+
+  # Files are read by vanilla, written by pack, and the compiler is run by validator. Everything between
+  # them is a calculation, so that it can be tested without the game or the disk.
+  pure-seasons:
+    on: shader.seasons
+    serves: [change-the-look.slow-feedback]
+    check: effects
+    with:
+      allow: []
+
+  pure-markers:
+    on: shader.markers
+    serves: [change-the-look.slow-feedback]
+    check: effects
+    with:
+      allow: []
+
+  pure-effects:
+    on: shader.effects
+    serves: [change-the-look.slow-feedback]
+    check: effects
+    with:
+      allow: []
+
+  pure-composer:
+    on: shader.composer
+    serves: [change-the-look.slow-feedback]
+    check: effects
+    with:
+      allow: []
+
+  access-sanity: {}  # The shader shall read each stored structure that a design parameter creates.
+
+  declared-errors: {}  # The shader shall raise only declared errors of project-defined types between components.
+
+  declared-libraries: {}  # The shader shall import only the standard library and declared or vendored packages.
+
+  designed-modules: {}  # The shader shall hold only the modules that the design names.
+
+  edge-types:  # The shader shall pass only project-defined types between components.
+    with:
+      bool-parameters: allowed
+      bool-returns: allowed
+      bool-fields: allowed
+
+  least-privilege: {}  # The shader shall request only the access that the code uses.
+
+  one-writer-per-data-store: {}  # The shader shall give each data container exactly one writing container.

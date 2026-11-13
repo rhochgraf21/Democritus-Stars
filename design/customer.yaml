@@ -1,0 +1,14 @@
+enjoy-the-view:
+  job: Play Minecraft in a world that looks beautiful
+  performer: Player
+  outcomes:
+    artificial-scenes: Minimize the number of scenes in which water, fog, clouds, stars, weather, seasons, lighting or shadows look artificial
+    slow-frames: Minimize the time it takes to draw a frame on the Mac of the player
+    rejected-pack: Minimize the likelihood that the game rejects the pack
+
+change-the-look:
+  job: Change how the pack looks
+  performer: Pack maker
+  outcomes:
+    version-port: Minimize the time it takes to bring the pack to a new Minecraft version
+    slow-feedback: Minimize the time it takes to see a changed effect in the game

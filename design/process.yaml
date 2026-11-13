@@ -1,0 +1,49 @@
+contracted-interfaces: {}  # The shader shall give a contract to each function declared without effects that an interface offers.
+
+described-names: {}  # The shader shall describe each public name in one line.
+
+max-children:  # The shader shall have at most 9 children under each functional requirement.
+  with:
+    count: 9
+
+max-lines:  # The shader shall keep each function within 200 lines, each class within 1000 lines and each file within 1000 lines.
+  with:
+    function: 200
+    class: 1000
+    file: 1000
+
+mutation:  # The shader shall have the contract of each function declared without effects notice every small change to the function.
+  with:
+    paths: 200
+    seconds: 10
+
+narrow-parameters: {}  # The shader shall take only the data that each function uses.
+
+no-single-implementations: {}  # The shader shall not keep an abstraction with only one implementation.
+
+planned-effects: {}  # The shader shall make every decision in a function that is declared without effects.
+
+# The parts with no side effects are calculations on text and colours: generated inputs find the cases a
+# hand-written example misses.
+property-tests:
+  kind: verification
+  on: shader.composer
+  serves: [enjoy-the-view.rejected-pack]
+  evidence: property-test
+
+# No test can say that water looks like water. The player looks at the reference scene with the pack on,
+# beside a photograph of the real thing, and writes down each scene that still looks artificial.
+look-review:
+  kind: validation
+  on: shader.effects
+  serves: [enjoy-the-view.artificial-scenes]
+  measures: enjoy-the-view.artificial-scenes
+  report: design/reports/look.md
+
+# The frame rate of the reference scene, read from the game with the pack off and with it on.
+frame-rate:
+  kind: validation
+  on: shader.effects
+  serves: [enjoy-the-view.slow-frames]
+  measures: enjoy-the-view.slow-frames
+  report: design/reports/frame-rate.md
