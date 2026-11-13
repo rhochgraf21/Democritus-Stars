@@ -17,12 +17,15 @@ frs:
 
   # terrain.vsh in 26.3 is given a position, a colour, a texture coordinate and a light level: nothing says
   # which block a surface belongs to. The texture is the only thing the pack controls that reaches the shader.
+  # Water carries its mark in alpha. Leaves and plants cannot: 26.3 draws any texture holding an alpha other
+  # than 0 or 255 in the translucent layer, which is the slow one, so their mark is a change to the colour
+  # too small to see.
   # The vertex stage reads the mark from the block texture that the terrain program already has. A vertex
   # sits on the corner of its texture, so which texel to read there is to be worked out when plants is built.
   shader.markers:
     serves: [enjoy-the-view.artificial-scenes]
     statements:
-      mark: The markers shall give the textures of water, leaves and plants an alpha value that tells the shaders what the surface is.
+      mark: The markers shall give the textures of water, leaves and plants a mark in their texels that tells the shaders what the surface is.
 
   shader.effects:
     serves: [enjoy-the-view.artificial-scenes, enjoy-the-view.slow-frames]
