@@ -84,6 +84,7 @@ GRASS_MAP = TexturePath("colormap/grass.png")
 FOLIAGE_MAP = TexturePath("colormap/foliage.png")
 DRY_FOLIAGE_MAP = TexturePath("colormap/dry_foliage.png")
 
+# The three colour maps a season gives, which are the textures to ask the game for.
 COLOUR_MAPS: tuple[TexturePath, ...] = (GRASS_MAP, FOLIAGE_MAP, DRY_FOLIAGE_MAP)
 
 UNCHANGED = Shift(hue_turn=Hue(0.0), chroma_scale=ChromaScale(1.0), lightness_shift=Lightness(0.0))
