@@ -12,3 +12,9 @@ shader.effects:
   - shader.effects.Effect
   - shader.effects.Attachment
   - shader.effects.Position
+shader.markers:
+  - shader.markers
+  - shader.markers.Surface
+  - shader.markers.AlphaMark
+  - shader.markers.Signature
+  - shader.markers.Probe
