@@ -199,7 +199,6 @@ def test_the_game_s_own_stars_are_mostly_white_with_every_tint_among_them() -> N
         assert abs(counted[tint] * PERCENT - TINT_SHARES[tint] * GAME_TRIES) <= 3 * GAME_TRIES
 
 
-@verifies("shader.effects.stars#vary")
 def test_a_tint_can_be_seen_and_is_still_a_star() -> None:
     assert TINT_COLOURS[Tint.WHITE] == WHITE
     for tint in TINTED:
@@ -208,7 +207,6 @@ def test_a_tint_can_be_seen_and_is_still_a_star() -> None:
         assert SUBTLE_FLOOR <= min(channels(colour)) <= 1.0 - SEEN_STEP
 
 
-@verifies("shader.effects.stars#vary")
 def test_hot_stars_lean_blue_and_cool_stars_lean_red() -> None:
     blue_white = TINT_COLOURS[Tint.BLUE_WHITE]
     assert blue_white.red < blue_white.green < blue_white.blue
