@@ -1,0 +1,6 @@
+.zigdag/
+.claude/
+__pycache__/
+.venv/
+.pytest_cache/
+.hypothesis/

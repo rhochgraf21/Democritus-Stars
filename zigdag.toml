@@ -1,0 +1,10 @@
+[settings]
+ruleset = 1
+tests = ["tests"]
+test_command = "pytest --junitxml=.zigdag/pytest.xml"
+
+[adapters]
+default = "python"
+
+[adapters.python]
+source = ["src"]
