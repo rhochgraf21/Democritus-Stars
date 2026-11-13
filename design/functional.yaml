@@ -45,7 +45,7 @@ frs:
   shader.effects.lighting:
     statements:
       colour: The lighting shall map each block light level and each sky light level to a colour in the light map of the game.
-      shade: While the sky is bright, the lighting shall give sky light levels below 15 a bluer colour than sky light level 15.
+      shade: The lighting shall not give a sky light level below 15 a warmer colour than sky light level 15.
       warm: The lighting shall not give block light a colour bluer than the vanilla block light.
 
   shader.effects.fog:
