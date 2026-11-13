@@ -25,7 +25,7 @@ frs:
   shader.markers:
     serves: [enjoy-the-view.artificial-scenes]
     statements:
-      mark: The markers shall give the textures of water, leaves and plants a mark in their texels that tells the shaders what the surface is.
+      mark: The markers shall give the textures of water, leaves and plants a mark in the texels of each texture that tells the shaders what the surface is.
 
   shader.effects:
     serves: [enjoy-the-view.artificial-scenes, enjoy-the-view.slow-frames]
