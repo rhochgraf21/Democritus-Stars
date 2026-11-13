@@ -1,23 +1,37 @@
-"""Gives the textures of water, leaves and plants an alpha value that tells the shaders what the surface is.
+"""Gives the textures of water, leaves and plants a mark in their texels that tells the shaders what the surface is.
 
 The game's terrain shader is told a position, a colour, a texture coordinate and a light level, and
 nothing about which block a surface belongs to. The block texture is the one thing the pack controls that
-reaches the shader, so its alpha carries the mark.
+reaches the shader, so its texels carry the mark.
 
-An effect recognises a mark by reading the alpha of one texel of level 0 of the block atlas, with
-texelFetch or textureLod at the texel's centre, and comparing it with alpha_of(surface) / 255 to within
-half of 1 / 255. Two reasons for level 0 at a centre: the game's own sampleNearest blends neighbouring
-texels near a texel's edge, and the smaller mipmap levels average a sprite's texels. Either can make a
-leaf's mark and its transparent holes average out to a value that is no mark, or make glass and its holes
-average out to one that is.
+Water carries an AlphaMark: every texel that is not transparent has that alpha. Leaves and plants carry a
+Signature in the low bits of the colour of each opaque texel; their alpha is left alone, because 26.3
+draws any quad whose texture holds an alpha other than 0 and 255 in the translucent layer, not the cutout
+one (NativeImage.computeTransparency, ChunkSectionLayer.byTransparency).
+
+An effect reads a mark with texelFetch at mipmap level 0. The game's own sampleNearest blends neighbouring
+texels near a texel's edge, and the smaller levels average a sprite's texels, so either could lose a mark
+or make one up. One texel of level 0 is the texel as the pack wrote it, with one exception: the game
+rewrites the colour of transparent texels when it builds the atlas (TextureUtil.solidify and
+fillEmptyAreasWithDarkColor, called from MipmapGenerator.generateMipLevels). That is why only opaque texels
+carry a signature, and why its reader looks at opaque texels only.
+
+A vertex of leaves or a plant knows only the corner of its sprite. The wind effect steps from that corner
+to the sprite's centre and looks at PROBES there in order: the first opaque one decides, and the surface is
+leaves or a plant if that texel's low colour bits are the surface's signature. A wrong guess of which way
+the sprite lies lands in the middle of a neighbouring sprite, where no texture outside MARKED carries one.
+
+Not yet seen in the game, and settled the first time the pack is: that the atlas puts no padding between
+sprites, and that a quad's vertex order tells which way its sprite lies from each corner.
 """
 
 from dataclasses import dataclass, replace
 from enum import Enum
+from typing import NewType
 
 import deal
 
-from shader.vanilla import Channel, Pixel, Texture, TexturePath
+from shader.vanilla import Channel, Pixel, PixelCount, Texture, TexturePath
 
 
 class Surface(Enum):
@@ -28,35 +42,105 @@ class Surface(Enum):
     PLANT = "plant"
 
 
-# The alpha of a texel that the game discards, so that holes in leaves and plants stay holes.
-TRANSPARENT = Channel(0)
+# The lowest and the highest value of a colour channel.
+CHANNEL_MIN = Channel(0)
+CHANNEL_MAX = Channel(255)
 
-# The alpha of every texel of an opaque vanilla texture: so common that it can never be a mark.
-OPAQUE = Channel(255)
+# The alpha of a texel that the game discards, so that holes in leaves and plants stay holes.
+TRANSPARENT = CHANNEL_MIN
+
+# The alpha of a wholly opaque texel: the only texels whose colour the game leaves as the pack wrote it.
+OPAQUE = CHANNEL_MAX
+
+# How many of the lowest bits of a colour channel a signature takes.
+BitCount = NewType("BitCount", int)
+
+# The value of the lowest SIGNATURE_BITS bits of one colour channel.
+LowBits = NewType("LowBits", int)
+
+# Where a probe sits from the centre texel of a sprite, in texels: positive is to the right or down.
+TexelOffset = NewType("TexelOffset", int)
+
+
+@dataclass(frozen=True)
+class AlphaMark:
+    """A mark in alpha: every texel of the surface that is not transparent has this alpha."""
+
+    alpha: Channel
+
+
+@dataclass(frozen=True)
+class Signature:
+    """A mark in colour: every opaque texel of the surface has these lowest bits in red, green and blue."""
+
+    red: LowBits
+    green: LowBits
+    blue: LowBits
+
+
+@dataclass(frozen=True)
+class Probe:
+    """A texel that the reader of a signature looks at, by where it sits from the centre texel of a sprite.
+
+    The centre texel is the one in column SPRITE_SIDE / 2 and row SPRITE_SIDE / 2 of its frame, counted
+    from 0 at the top left: the texel whose top left corner is the centre of the sprite.
+    """
+
+    across: TexelOffset
+    down: TexelOffset
+
+
+# Three bits of each channel. With two, every one of the 64 patterns is already held by some opaque texel
+# in the middle of a block texture of 26.3, so no signature could keep stone still. With three, 131 of the
+# 512 patterns are held by none, and rounding to the nearest value with a signature's bits moves a channel
+# by at most 4 of 255 (7 at the ends of the range), which the eye does not see.
+SIGNATURE_BITS = BitCount(3)
+
+_SIGNATURE_STEP = 1 << SIGNATURE_BITS
+
+_NO_BITS = LowBits(0)
+_ALL_BITS = LowBits(_SIGNATURE_STEP - 1)
+
+# All low bits zero is where flat and hand-drawn colours such as 0, 128 or 248 fall, and all ones is where
+# 255 falls: a signature on either would be found on unmarked textures first.
+_COMMON_PATTERNS = ((_NO_BITS, _NO_BITS, _NO_BITS), (_ALL_BITS, _ALL_BITS, _ALL_BITS))
 
 # Vanilla water is 180 in every texel, and its alpha is how see-through it is, so its mark has to stay
 # near 180. 180 itself is also slime's, and the nether portal, drawn translucent like water, holds every
 # value from 155 to 232. 154 is the nearest value to 180 that no other block texture of 26.3 holds. The
 # water effect, which recognises the mark, can give water back its vanilla 180 if the look asks for it.
-_WATER_MARK = Channel(154)
+_WATER_MARK = AlphaMark(Channel(154))
 
-# Leaves and plants are cut out: a texel is kept or discarded, so any alpha well above the game's
-# threshold looks the same as 255. No block texture of 26.3 holds a value from 239 to 254. The marks sit
-# two steps from 255 and from each other, which leaves a whole step between a mark and its neighbour at a
-# tolerance of half a step.
-#
-# Incomplete: 26.3 chooses the layer of each quad from its texture. A texture with any alpha other than 0
-# and 255 is drawn in the translucent layer, not the cutout one (NativeImage.computeTransparency,
-# ChunkSectionLayer.byTransparency). So these two marks move leaves and plants into the translucent layer,
-# which sorts and blends them. Whether that costs too much of the frame rate is to be tried in the game.
-_LEAVES_MARK = Channel(253)
-_PLANT_MARK = Channel(251)
+# Of the patterns that the first opaque probe of no unmarked block texture of 26.3 holds, these two have
+# the fewest held patterns one step away in a single channel, which leaves the most room for a texture a
+# later version adds. They differ in every channel, and neither is all zeros nor all ones, the patterns
+# that flat colours fall on most.
+_LEAVES_SIGNATURE = Signature(LowBits(4), LowBits(6), LowBits(4))
+_PLANT_SIGNATURE = Signature(LowBits(6), LowBits(2), LowBits(1))
 
-_MARKS = {
+_MARKS: dict[Surface, AlphaMark | Signature] = {
     Surface.WATER: _WATER_MARK,
-    Surface.LEAVES: _LEAVES_MARK,
-    Surface.PLANT: _PLANT_MARK,
+    Surface.LEAVES: _LEAVES_SIGNATURE,
+    Surface.PLANT: _PLANT_SIGNATURE,
 }
+
+# The side of one frame of a vanilla block sprite; an animated one stacks its frames from the top. The
+# wind effect steps half of it from a corner to reach the centre.
+SPRITE_SIDE = PixelCount(16)
+
+_CENTRE = SPRITE_SIDE // 2
+
+# Five are the fewest probes that find an opaque texel in every frame of every leaf and plant texture of
+# 26.3, and each is a texture read per vertex. They were found by a search over those textures, so they
+# follow no pattern: the first is opaque in most textures, and the later ones catch the thin stems of young
+# crops, the sparse glow of firefly bushes and eyeblossoms, and the bent frames of seagrass.
+PROBES: tuple[Probe, ...] = (
+    Probe(TexelOffset(-1), TexelOffset(6)),
+    Probe(TexelOffset(-3), TexelOffset(1)),
+    Probe(TexelOffset(0), TexelOffset(-5)),
+    Probe(TexelOffset(-1), TexelOffset(-3)),
+    Probe(TexelOffset(3), TexelOffset(5)),
+)
 
 _BLOCK_FOLDER = "block/"
 _IMAGE_SUFFIX = ".png"
@@ -236,9 +320,16 @@ _SURFACE_OF = {path: surface for surface, paths in _TEXTURES_OF.items() for path
 # quietly pick nothing for it.
 MARKED: tuple[TexturePath, ...] = tuple(_SURFACE_OF)
 
+# Which frame of an animated texture, counted from the top from 0.
+FrameIndex = NewType("FrameIndex", int)
+
+
+class MarkError(Exception):
+    """A texture that the markers cannot mark."""
+
 
 @dataclass
-class UnmarkedTexture(Exception):
+class UnmarkedTexture(MarkError):
     """A texture that is not of water, leaves or a plant, so the markers have no mark for it."""
 
     path: TexturePath
@@ -247,10 +338,41 @@ class UnmarkedTexture(Exception):
         return f"{self.path} is not a texture of water, leaves or a plant"
 
 
+@dataclass
+class UnexpectedSpriteSize(MarkError):
+    """A leaf or plant texture whose frames are not SPRITE_SIDE square, so the wind effect misses its centre."""
+
+    path: TexturePath
+    width: PixelCount
+    height: PixelCount
+
+    def __str__(self) -> str:
+        return f"{self.path} is {self.width} by {self.height}, not frames of {SPRITE_SIDE} by {SPRITE_SIDE}"
+
+
+@dataclass
+class UnreadableFrame(MarkError):
+    """A leaf or plant texture with a frame in which no probe is opaque, so its signature could never be read."""
+
+    path: TexturePath
+    frame: FrameIndex
+
+    def __str__(self) -> str:
+        return f"{self.path}: frame {self.frame} has no opaque texel at any probe, so it would never sway"
+
+
+def _is_sound(mark: AlphaMark | Signature) -> bool:
+    if isinstance(mark, AlphaMark):
+        return TRANSPARENT < mark.alpha < OPAQUE
+    bits = (mark.red, mark.green, mark.blue)
+    return all(_NO_BITS <= bit <= _ALL_BITS for bit in bits) and bits not in _COMMON_PATTERNS
+
+
 @deal.pure
-@deal.post(lambda result: TRANSPARENT < result < OPAQUE)
-def alpha_of(surface: Surface) -> Channel:
-    """The alpha that marks a texel of this kind of surface, for an effect to compare in its GLSL."""
+@deal.post(_is_sound)
+@deal.ensure(lambda surface, result: isinstance(result, AlphaMark) == (surface is Surface.WATER))
+def mark_of(surface: Surface) -> AlphaMark | Signature:
+    """The mark of a kind of surface, for an effect to compare in its GLSL: water's alpha, or a signature."""
     return _MARKS[surface]
 
 
@@ -262,49 +384,129 @@ def surface_of(path: TexturePath) -> Surface | None:
     return _SURFACE_OF.get(path)
 
 
-def _is_marked_from(texture: Texture, marked: Texture) -> bool:
-    surface = surface_of(texture.path)
-    if surface is None:
-        return False
-    mark = alpha_of(surface)
-    return (
-        (marked.path, marked.width, marked.height, marked.meta)
-        == (texture.path, texture.width, texture.height, texture.meta)
-        and len(marked.pixels) == len(texture.pixels)
-        and all(_is_pixel_marked_from(pixel, after, mark) for pixel, after in zip(texture.pixels, marked.pixels))
+def _low_bits(channel: Channel) -> LowBits:
+    return LowBits(channel % _SIGNATURE_STEP)
+
+
+def _carries(pixel: Pixel, signature: Signature) -> bool:
+    return (_low_bits(pixel.red), _low_bits(pixel.green), _low_bits(pixel.blue)) == (
+        signature.red,
+        signature.green,
+        signature.blue,
     )
 
 
-def _is_pixel_marked_from(pixel: Pixel, marked: Pixel, mark: Channel) -> bool:
-    expected = TRANSPARENT if pixel.alpha == TRANSPARENT else mark
-    return (marked.red, marked.green, marked.blue, marked.alpha) == (pixel.red, pixel.green, pixel.blue, expected)
+def _with_low_bits(channel: Channel, bits: LowBits) -> Channel:
+    # The nearest value with these bits, so that no channel moves by more than half a step unless the
+    # nearest one lies outside the range.
+    same_step = channel - _low_bits(channel) + bits
+    candidates = (same_step - _SIGNATURE_STEP, same_step, same_step + _SIGNATURE_STEP)
+    return Channel(min((c for c in candidates if CHANNEL_MIN <= c <= CHANNEL_MAX), key=lambda c: abs(c - channel)))
 
 
-def _marked_pixel(pixel: Pixel, mark: Channel) -> Pixel:
-    # A transparent texel keeps 0: any other alpha fills in the holes of leaves and plants.
+def _signed(pixel: Pixel, signature: Signature) -> Pixel:
+    # The game rewrites the colour of transparent texels, and a partly transparent one is never read.
+    if pixel.alpha != OPAQUE:
+        return pixel
+    return replace(
+        pixel,
+        red=_with_low_bits(pixel.red, signature.red),
+        green=_with_low_bits(pixel.green, signature.green),
+        blue=_with_low_bits(pixel.blue, signature.blue),
+    )
+
+
+def _alpha_marked(pixel: Pixel, mark: AlphaMark) -> Pixel:
+    # A transparent texel keeps 0: the game discards it, and so it stays a hole.
     if pixel.alpha == TRANSPARENT:
         return pixel
-    return replace(pixel, alpha=mark)
+    return replace(pixel, alpha=mark.alpha)
+
+
+def _frames(texture: Texture) -> tuple[FrameIndex, ...]:
+    return tuple(FrameIndex(frame) for frame in range(texture.height // SPRITE_SIDE))
+
+
+def _probe_texel(texture: Texture, frame: FrameIndex, probe: Probe) -> Pixel:
+    column = _CENTRE + probe.across
+    row = frame * SPRITE_SIDE + _CENTRE + probe.down
+    return texture.pixels[row * texture.width + column]
+
+
+def _is_readable(texture: Texture, frame: FrameIndex) -> bool:
+    return any(_probe_texel(texture, frame, probe).alpha == OPAQUE for probe in PROBES)
 
 
 @deal.has()
-@deal.raises(UnmarkedTexture)
+@deal.raises(UnexpectedSpriteSize, UnreadableFrame)
+def _check_readable(texture: Texture) -> None:
+    if texture.width != SPRITE_SIDE or texture.height % SPRITE_SIDE != 0 or texture.height == 0:
+        raise UnexpectedSpriteSize(texture.path, texture.width, texture.height)
+    for frame in _frames(texture):
+        if not _is_readable(texture, frame):
+            raise UnreadableFrame(texture.path, frame)
+
+
+@deal.has()
+@deal.raises(UnmarkedTexture, UnexpectedSpriteSize, UnreadableFrame)
 def _marked(texture: Texture) -> Texture:
     surface = surface_of(texture.path)
     if surface is None:
         raise UnmarkedTexture(texture.path)
-    mark = alpha_of(surface)
-    return replace(texture, pixels=tuple(_marked_pixel(pixel, mark) for pixel in texture.pixels))
+    mark = mark_of(surface)
+    if isinstance(mark, AlphaMark):
+        return replace(texture, pixels=tuple(_alpha_marked(pixel, mark) for pixel in texture.pixels))
+    _check_readable(texture)
+    return replace(texture, pixels=tuple(_signed(pixel, mark) for pixel in texture.pixels))
+
+
+def _is_alpha_marked_from(pixel: Pixel, marked: Pixel, mark: AlphaMark) -> bool:
+    alpha = TRANSPARENT if pixel.alpha == TRANSPARENT else mark.alpha
+    return marked == replace(pixel, alpha=alpha)
+
+
+def _is_signed_from(pixel: Pixel, marked: Pixel, signature: Signature) -> bool:
+    if pixel.alpha != OPAQUE:
+        return marked == pixel
+    moves = (marked.red - pixel.red, marked.green - pixel.green, marked.blue - pixel.blue)
+    return (
+        marked.alpha == pixel.alpha
+        and _carries(marked, signature)
+        and all(abs(move) < _SIGNATURE_STEP for move in moves)
+    )
+
+
+def _is_marked_from(texture: Texture, marked: Texture) -> bool:
+    surface = surface_of(texture.path)
+    if surface is None or len(marked.pixels) != len(texture.pixels):
+        return False
+    if (marked.path, marked.width, marked.height, marked.meta) != (
+        texture.path,
+        texture.width,
+        texture.height,
+        texture.meta,
+    ):
+        return False
+    mark = mark_of(surface)
+    pairs = zip(texture.pixels, marked.pixels)
+    if isinstance(mark, AlphaMark):
+        return all(_is_alpha_marked_from(pixel, after, mark) for pixel, after in pairs)
+    return all(_is_signed_from(pixel, after, mark) for pixel, after in pairs)
 
 
 @deal.has()
-@deal.raises(UnmarkedTexture)
+@deal.raises(UnmarkedTexture, UnexpectedSpriteSize, UnreadableFrame)
 @deal.ensure(lambda textures, result: len(result) == len(textures))
 @deal.ensure(lambda textures, result: all(_is_marked_from(*pair) for pair in zip(textures, result)))
 def mark(textures: tuple[Texture, ...]) -> tuple[Texture, ...]:
-    """The textures with their marks: each texel that is not transparent takes the mark of its surface.
+    """The textures with their marks, each texture's path, size, animation and alpha otherwise kept.
 
-    Path, size, animation and colours are kept. Raises UnmarkedTexture for a texture that is not one of
-    MARKED, rather than pass it on unmarked, since a caller who hands one over has asked for the wrong one.
+    Water: each texel that is not transparent takes the water's alpha, and its colour is kept. Leaves and
+    plants: each opaque texel takes the surface's signature, moving each channel to the nearest value with
+    those low bits, and every other texel is left as it is.
+
+    Raises UnmarkedTexture for a texture that is not one of MARKED, rather than pass it on unmarked, since
+    a caller who hands one over has asked for the wrong one. Raises UnexpectedSpriteSize or UnreadableFrame
+    for a leaf or plant texture whose signature the wind effect could not read: it would never sway.
     """
     return tuple(_marked(texture) for texture in textures)
