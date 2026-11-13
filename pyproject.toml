@@ -6,7 +6,7 @@ requires-python = ">=3.11"
 dependencies = ["deal", "pillow"]
 
 [dependency-groups]
-dev = ["pytest", "hypothesis", "zigdag"]
+dev = ["pytest", "hypothesis", "zigdag[mutation]"]
 
 [tool.uv.sources]
 zigdag = { path = "..", editable = false }
