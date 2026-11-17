@@ -1,39 +1,40 @@
-democritus.effects.stars.catalogue:
-  - shader.effects.stars.catalogue
-  - shader.effects.stars.catalogue.CatalogueStar
-democritus.effects.stars.figures:
-  - shader.effects.stars.figures
-  - shader.effects.stars.figures.FigureLine
-  - shader.effects.stars.figures.SkyPlace
-democritus.effects.stars.galaxy:
-  - shader.effects.stars.galaxy
-  - shader.effects.stars.galaxy.GalacticDirection
-  - shader.effects.stars.galaxy.Glow
-  - shader.effects.stars.galaxy.Satellite
-  - shader.effects.stars.galaxy.StarSheet
-  - shader.effects.stars.galaxy.Bend
-democritus: [shader]
 # The types that pass between the parts belong to the part that describes them: each is recorded here so
 # that the checks know them as structures of the design, and hold every other part to using them as given.
+democritus: [democritus]
 democritus.vanilla:
-  - shader.vanilla
-  - shader.vanilla.Game
-  - shader.vanilla.ResourceFormat
-  - shader.vanilla.ShaderFile
-  - shader.vanilla.Texture
-  - shader.vanilla.Pixel
+  - democritus.vanilla
+  - democritus.vanilla.Game
+  - democritus.vanilla.ResourceFormat
+  - democritus.vanilla.ShaderFile
+  - democritus.vanilla.Texture
+  - democritus.vanilla.Pixel
 democritus.effects:
-  - shader.effects
-  - shader.effects.Effect
-  - shader.effects.Attachment
-  - shader.effects.Position
+  - democritus.effects
+  - democritus.effects.Effect
+  - democritus.effects.Attachment
+  - democritus.effects.Position
+  - democritus.effects.Landmark
 democritus.markers:
-  - shader.markers
-  - shader.markers.Surface
-  - shader.markers.AlphaMark
-  - shader.markers.Signature
-  - shader.markers.Probe
-democritus.validator: [shader.validator, shader.validator.CompileFailure]
-democritus.command: [shader.command]
-democritus.composer: [shader.composer]
-democritus.pack: [shader.pack]
+  - democritus.markers
+  - democritus.markers.Surface
+  - democritus.markers.AlphaMark
+  - democritus.markers.Signature
+  - democritus.markers.Probe
+democritus.validator: [democritus.validator, democritus.validator.CompileFailure]
+democritus.command: [democritus.command]
+democritus.composer: [democritus.composer]
+democritus.pack: [democritus.pack]
+democritus.effects.stars.catalogue:
+  - democritus.effects.stars.catalogue
+  - democritus.effects.stars.catalogue.CatalogueStar
+democritus.effects.stars.figures:
+  - democritus.effects.stars.figures
+  - democritus.effects.stars.figures.FigureLine
+  - democritus.effects.stars.figures.SkyPlace
+democritus.effects.stars.galaxy:
+  - democritus.effects.stars.galaxy
+  - democritus.effects.stars.galaxy.GalacticDirection
+  - democritus.effects.stars.galaxy.Glow
+  - democritus.effects.stars.galaxy.Satellite
+  - democritus.effects.stars.galaxy.StarSheet
+  - democritus.effects.stars.galaxy.Bend
