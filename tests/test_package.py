@@ -1,7 +1,7 @@
 """The package can be imported: the least a build needs."""
 
-import shader
+import democritus
 
 
 def test_package_is_described() -> None:
-    assert shader.__doc__
+    assert democritus.__doc__

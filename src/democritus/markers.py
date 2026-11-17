@@ -31,7 +31,7 @@ from typing import NewType
 
 import deal
 
-from shader.vanilla import Channel, Pixel, PixelCount, Texture, TexturePath
+from democritus.vanilla import Channel, Pixel, PixelCount, Texture, TexturePath
 
 
 class Surface(Enum):

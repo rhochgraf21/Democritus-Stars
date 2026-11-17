@@ -6,8 +6,8 @@ from pathlib import Path
 import pytest
 from PIL import Image
 
-from shader.pack import NotOurPack, PackFolder, write_pack
-from shader.vanilla import (
+from democritus.pack import NotOurPack, PackFolder, write_pack
+from democritus.vanilla import (
     Channel,
     FormatNumber,
     Pixel,
@@ -89,7 +89,7 @@ def test_a_rebuild_leaves_nothing_of_the_last_build(tmp_path: Path) -> None:
     write_pack(folder, FORMAT, (FOG, SKY), (WATER,))
     write_pack(folder, FORMAT, (SKY,), (GRASS,))
     shaders, textures = Path("assets/minecraft/shaders"), Path("assets/minecraft/textures")
-    assert _files(folder) - {Path("pack.mcmeta"), Path("built-by-shader.txt")} == {
+    assert _files(folder) - {Path("pack.mcmeta"), Path("built-by-democritus.txt")} == {
         shaders / "core/sky.fsh", textures / "colormap/grass.png"}
 
 

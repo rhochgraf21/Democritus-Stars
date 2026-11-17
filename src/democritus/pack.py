@@ -15,7 +15,7 @@ from typing import NewType
 import deal
 from PIL import Image
 
-from shader.vanilla import Channel, PixelCount, ResourceFormat, ShaderFile, ShaderPath, Texture, TexturePath
+from democritus.vanilla import Channel, PixelCount, ResourceFormat, ShaderFile, ShaderPath, Texture, TexturePath
 
 # The folder of one resource pack, such as .../minecraft/resourcepacks/<pack name>.
 PackFolder = NewType("PackFolder", Path)
@@ -30,7 +30,7 @@ PACK_META = PurePosixPath("pack.mcmeta")
 SHADERS = PurePosixPath("assets/minecraft/shaders")
 TEXTURES = PurePosixPath("assets/minecraft/textures")
 TEXTURE_META_SUFFIX = ".mcmeta"
-DESCRIPTION = "Shaders built on the game's own"
+DESCRIPTION = "A realistic night sky for vanilla Minecraft"
 ENCODING = "utf-8"
 PNG = "PNG"
 RGBA = "RGBA"
@@ -41,9 +41,9 @@ BRIGHTEST = Channel(255)
 
 # Any resource pack has a pack.mcmeta, so that file cannot tell a pack of ours from one a person made by hand.
 # This file is written by no one else, and it says to a person who opens the folder why it may vanish.
-MARKER = PurePosixPath("built-by-shader.txt")
+MARKER = PurePosixPath("built-by-democritus.txt")
 MARKER_TEXT = (
-    "This pack is written by the shader build. Each build deletes this folder and writes it anew, "
+    "This pack is written by the democritus command. Each build deletes this folder and writes it anew, "
     "so a change made here by hand is lost.\n"
 )
 OWN_FILES = (PACK_META, MARKER)  # the files every pack holds, whatever it is built from

@@ -14,7 +14,7 @@ from dataclasses import dataclass
 
 import deal
 
-from shader.effects.stars.catalogue import Degrees, Hours
+from democritus.effects.stars.catalogue import Degrees, Hours
 
 
 @dataclass(frozen=True)

@@ -39,9 +39,9 @@ from typing import NewType
 
 import deal
 
-from shader.effects import GlslCode
-from shader.effects.stars.catalogue import Degrees, Hours
-from shader.effects.stars.figures import SkyPlace
+from democritus.effects import GlslCode
+from democritus.effects.stars.catalogue import Degrees, Hours
+from democritus.effects.stars.figures import SkyPlace
 
 # The light of one colour that reaches the eye at midnight: 0 is none, 1 is all a screen can show.
 Light = NewType("Light", float)

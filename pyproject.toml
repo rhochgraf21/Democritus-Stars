@@ -1,11 +1,18 @@
 [project]
-name = "shader"
+name = "democritus-stars"
 version = "0.1.0"
-description = "Builds a Minecraft resource pack of shaders from the game's own shaders and a set of effects."
+description = "A fast and realistic night sky resource pack for vanilla Minecraft."
+readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
-license-files = ["LICENSE"]
+license-files = ["LICENSE", "THIRD_PARTY_NOTICES"]
 dependencies = ["deal", "pillow"]
+
+[project.scripts]
+democritus = "democritus.command:main"
+
+[project.urls]
+Repository = "https://github.com/rhochgraf21/Democritus-Stars"
 
 [dependency-groups]
 dev = ["pytest", "hypothesis"]
@@ -15,7 +22,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/shader"]
+packages = ["src/democritus"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]

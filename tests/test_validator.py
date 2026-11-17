@@ -6,12 +6,12 @@ import zipfile
 
 import pytest
 
-from shader.validator import CompilerNotFound, IncludeCycle, IncludeNotFound, validate
-from shader.vanilla import ShaderFile, ShaderPath, ShaderText
+from democritus.validator import CompilerNotFound, IncludeCycle, IncludeNotFound, validate
+from democritus.vanilla import ShaderFile, ShaderPath, ShaderText
 
 # Where a game jar keeps its shader files.
 JAR_SHADERS = "assets/minecraft/shaders/"
-GAME_JAR = "SHADER_GAME_JAR"  # the environment variable that names a game jar to check the vanilla shaders of
+GAME_JAR = "DEMOCRITUS_GAME_JAR"  # the environment variable that names a game jar to check the vanilla shaders of
 
 
 def shader(path: str, *lines: str) -> ShaderFile:

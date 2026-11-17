@@ -28,7 +28,7 @@ planned-effects: {}  # The shader shall make every decision in a function that i
 # hand-written example misses.
 property-tests:
   kind: verification
-  on: shader.composer
+  on: democritus.composer
   serves: [enjoy-the-view.rejected-pack]
   evidence: property-test
 
@@ -36,7 +36,7 @@ property-tests:
 # beside a photograph of the real thing, and writes down each scene that still looks artificial.
 look-review:
   kind: validation
-  on: shader.effects
+  on: democritus.effects
   serves: [enjoy-the-view.artificial-scenes]
   measures: enjoy-the-view.artificial-scenes
   report: design/reports/look.md
@@ -44,7 +44,7 @@ look-review:
 # The frame rate of the reference scene, read from the game with the pack off and with it on.
 frame-rate:
   kind: validation
-  on: shader.effects
+  on: democritus.effects
   serves: [enjoy-the-view.slow-frames]
   measures: enjoy-the-view.slow-frames
   report: design/reports/frame-rate.md

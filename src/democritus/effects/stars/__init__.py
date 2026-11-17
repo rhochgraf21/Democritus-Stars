@@ -11,8 +11,8 @@ is the same for the four corners of a star and for no other star.
 Where a star goes. The game's positions are not used. The game's quads are all there is to draw with, so
 they are shared out: the first BOX_COUNT of them are the faces of a box around the camera, on which the
 Milky Way is painted, the next LINE_COUNT are the lines of the constellations' figures
-(shader.effects.stars.figures), one quad stretched thin from one end of a line to the other, and the rest
-are stars from the catalogue (shader.effects.stars.catalogue): first the stars that the lines join, then
+(democritus.effects.stars.figures), one quad stretched thin from one end of a line to the other, and the rest
+are stars from the catalogue (democritus.effects.stars.catalogue): first the stars that the lines join, then
 the brightest of the rest (drawn_stars). The
 vertex stage builds each quad itself: the number of the vertex within its quad says which corner. A line
 stops short of both its ends, so that it does not run into the stars it joins. The game draws only
@@ -58,7 +58,7 @@ The Milky Way. The star shaders are given no texture, and the sky's own shader i
 night has turned the stars, so the galaxy is drawn here, with the stars' quads. Six of them make a box
 that shuts the camera in, and so there is a fragment for every pixel of the sky. The vertex stage hands
 the fragment stage the place of each pixel on the box, already turned into the galaxy's axes, and
-shader.effects.stars.galaxy gives the light of the galaxy in that direction. The box turns with the stars,
+democritus.effects.stars.galaxy gives the light of the galaxy in that direction. The box turns with the stars,
 is added to the sky as they are, and fades with the game's fade as they do. Its corners are as far away
 as the stars, since nothing is known to be drawn beyond that: a far plane nearer than a face would cut
 a hole in the galaxy.
@@ -74,12 +74,12 @@ from typing import NewType
 
 import deal
 
-from shader.effects import Attachment, Effect, EffectName, GlslCode, Place, Position
-from shader.effects.stars import catalogue, figures, galaxy
-from shader.effects.stars.catalogue import CatalogueStar, ColourIndex, Magnitude
-from shader.effects.stars.figures import SkyPlace
-from shader.effects.stars.galaxy import GalacticDirection, Lean
-from shader.vanilla import ShaderPath
+from democritus.effects import Attachment, Effect, EffectName, ExactLine, GlslCode, Landmark, Position
+from democritus.effects.stars import catalogue, figures, galaxy
+from democritus.effects.stars.catalogue import CatalogueStar, ColourIndex, Magnitude
+from democritus.effects.stars.figures import SkyPlace
+from democritus.effects.stars.galaxy import GalacticDirection, Lean
+from democritus.vanilla import ShaderPath
 
 # Which vertex of the star buffer, counted from 0: what gl_VertexIndex is in stars.vsh.
 VertexIndex = NewType("VertexIndex", int)
@@ -275,11 +275,12 @@ NAME = EffectName("stars")
 _VERTEX_SHADER = ShaderPath("core/stars.vsh")
 _FRAGMENT_SHADER = ShaderPath("core/stars.fsh")
 
-# Each line occurs once in its shader. The varyings and the functions go before main, in both stages.
-_LAST_INCLUDE = Place("#include <minecraft:projection.glsl>")
-_MAIN = Place("void main() {")
-_POSITION_SET = Place("gl_Position = ProjMat * ModelViewMat * vec4(Position, 1.0);")
-_COLOUR_SET = Place("fragColor = ColorModulator;")
+# The varyings and the functions go before main, in both stages. The two statements are replaced, so they are
+# exact lines, each once in its shader.
+_LAST_INCLUDE = Landmark.LAST_INCLUDE
+_MAIN = Landmark.MAIN
+_POSITION_SET = ExactLine("gl_Position = ProjMat * ModelViewMat * vec4(Position, 1.0);")
+_COLOUR_SET = ExactLine("fragColor = ColorModulator;")
 
 # The game's own include that declares the Globals block, which holds the clock.
 GLOBALS_INCLUDE = GlslCode("#include <minecraft:globals.glsl>")

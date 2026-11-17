@@ -4,7 +4,7 @@ import pytest
 from hypothesis import assume, given
 from hypothesis import strategies as st
 
-from shader.composer import (
+from democritus.composer import (
     IncludeReplacesVanilla,
     IncludesConflict,
     PlaceMissing,
@@ -13,16 +13,16 @@ from shader.composer import (
     ShaderUnknown,
     compose,
 )
-from shader.effects import Attachment, Effect, EffectName, GlslCode, Place, Position
-from shader.vanilla import ShaderFile, ShaderPath, ShaderText
+from democritus.effects import Attachment, Effect, EffectName, ExactLine, GlslCode, Landmark, Place, Position
+from democritus.vanilla import ShaderFile, ShaderPath, ShaderText
 
 FOG = EffectName("fog")
 SKY = EffectName("sky")
 TERRAIN = ShaderPath("core/terrain.fsh")
 SKY_SHADER = ShaderPath("core/sky.fsh")
 FOG_INCLUDE = ShaderPath("include/fog_density.glsl")
-MAIN = Place("void main() {")
-OUTPUT = Place("fragColor = color;")
+MAIN = ExactLine("void main() {")
+OUTPUT = ExactLine("fragColor = color;")
 
 TERRAIN_TEXT = ShaderText("#version 330\n\nvoid main() {\n    fragColor = color;\n}\n")
 TERRAIN_FILE = ShaderFile(TERRAIN, TERRAIN_TEXT)
@@ -94,18 +94,18 @@ def test_crlf_text_keeps_its_endings_and_code_takes_them() -> None:
 
 def test_code_after_a_last_line_without_ending_is_put_on_its_own_line() -> None:
     text = ShaderText("void main() {\n}")
-    fog = effect(FOG, attach(Place("}"), Position.AFTER, "// end"))
+    fog = effect(FOG, attach(ExactLine("}"), Position.AFTER, "// end"))
     assert composed_text(fog, vanilla=(ShaderFile(TERRAIN, text),)) == "void main() {\n}\n// end\n"
 
 
 def test_code_in_a_text_without_endings_ends_with_lf() -> None:
-    fog = effect(FOG, attach(Place("}"), Position.BEFORE, "// end"))
+    fog = effect(FOG, attach(ExactLine("}"), Position.BEFORE, "// end"))
     assert composed_text(fog, vanilla=(ShaderFile(TERRAIN, ShaderText("}")),)) == "// end\n}"
 
 
 def test_code_before_a_last_line_without_ending_takes_the_shaders_ending() -> None:
     text = ShaderText("void main() {\r\n}")
-    fog = effect(FOG, attach(Place("}"), Position.BEFORE, "// end"))
+    fog = effect(FOG, attach(ExactLine("}"), Position.BEFORE, "// end"))
     assert composed_text(fog, vanilla=(ShaderFile(TERRAIN, text),)) == "void main() {\r\n// end\r\n}"
 
 
@@ -159,7 +159,7 @@ def test_two_replacements_of_one_place_name_both_effects() -> None:
 
 
 def test_a_missing_place_names_the_effect_and_the_place() -> None:
-    gone = Place("fragColor = linear_fog(color);")
+    gone = ExactLine("fragColor = linear_fog(color);")
     with pytest.raises(PlaceMissing) as raised:
         compose((TERRAIN_FILE,), (effect(FOG, attach(gone, Position.AFTER, "a();")),))
     assert (raised.value.effect, raised.value.shader, raised.value.place) == (FOG, TERRAIN, gone)
@@ -168,7 +168,7 @@ def test_a_missing_place_names_the_effect_and_the_place() -> None:
 
 def test_a_place_must_be_a_whole_line() -> None:
     with pytest.raises(PlaceMissing):
-        compose((TERRAIN_FILE,), (effect(FOG, attach(Place("fragColor"), Position.AFTER, "a();")),))
+        compose((TERRAIN_FILE,), (effect(FOG, attach(ExactLine("fragColor"), Position.AFTER, "a();")),))
 
 
 def test_a_repeated_place_names_the_effect_and_the_place() -> None:
@@ -204,7 +204,7 @@ def test_every_line_but_a_replaced_place_survives_in_order(shader: tuple[list[st
     place = data.draw(st.sampled_from(bodies))
     position = data.draw(st.sampled_from(Position))
     code = data.draw(st.text(alphabet=st.characters(blacklist_characters="\r\n")))
-    (joined,) = compose((ShaderFile(TERRAIN, text),), (effect(FOG, attach(Place(place), position, code)),))
+    (joined,) = compose((ShaderFile(TERRAIN, text),), (effect(FOG, attach(ExactLine(place), position, code)),))
     kept = [body for body in bodies if not (position is Position.INSTEAD and body == place)]
     remaining = iter(line.removesuffix("\r") for line in joined.text.split("\n"))
     assert all(any(line == body for line in remaining) for body in kept)
@@ -216,7 +216,7 @@ def test_code_lands_next_to_its_place(shader: tuple[list[str], ShaderText], data
     index = data.draw(st.integers(min_value=0, max_value=len(bodies) - 1))
     position = data.draw(st.sampled_from(Position))
     code = "// inserted"
-    (joined,) = compose((ShaderFile(TERRAIN, text),), (effect(FOG, attach(Place(bodies[index]), position, code)),))
+    (joined,) = compose((ShaderFile(TERRAIN, text),), (effect(FOG, attach(ExactLine(bodies[index]), position, code)),))
     expected = {
         Position.BEFORE: [*bodies[:index], code, *bodies[index:]],
         Position.AFTER: [*bodies[: index + 1], code, *bodies[index + 1 :]],
@@ -241,7 +241,7 @@ def test_any_place_the_shader_lacks_is_named(
 ) -> None:
     bodies, text = shader
     assume(place not in bodies)
-    fog = effect(FOG, attach(Place(place), position, "a();"))
+    fog = effect(FOG, attach(ExactLine(place), position, "a();"))
     with pytest.raises(PlaceMissing) as raised:
         compose((ShaderFile(TERRAIN, text),), (fog,))
     assert (raised.value.effect, raised.value.shader, raised.value.place) == (FOG, TERRAIN, place)
@@ -254,7 +254,82 @@ def test_any_place_the_shader_repeats_is_named(shader: tuple[list[str], ShaderTe
     position = data.draw(st.sampled_from(Position))
     ending = "\r\n" if "\r\n" in text else "\n"
     repeated = ShaderText(text + "    " + place + ending)
-    fog = effect(FOG, attach(Place(place), position, "a();"))
+    fog = effect(FOG, attach(ExactLine(place), position, "a();"))
     with pytest.raises(PlaceRepeated) as raised:
         compose((ShaderFile(TERRAIN, repeated),), (fog,))
     assert (raised.value.effect, raised.value.shader, raised.value.place) == (FOG, TERRAIN, place)
+
+
+# ---- landmarks: places found by the shape of the shader, not by its exact text ------------------------------------
+
+# A shader shaped like the game's, with what would confuse a reading by text: a uniform block whose members are
+# not varyings, a function before main with braces of its own, and a block inside main.
+SHAPED = ShaderText(
+    "#version 330\n"
+    "#include <minecraft:fog.glsl>\n"
+    "#include <minecraft:projection.glsl>  // the last include\n"
+    "layout(std140) uniform Info {\n"
+    "    vec4 Tint;\n"
+    "} info;\n"
+    "layout(location = 0) in vec3 Position;\n"
+    "flat in int Face;\n"
+    "out float distance;\n"
+    "layout(location = 1) out vec4 colour;\n"
+    "float lift(float x) {\n"
+    "    return x;\n"
+    "}\n"
+    "void main() {\n"
+    "    if (Face > 0) {\n"
+    "        distance = 1.0;\n"
+    "    }\n"
+    "}\n"
+)
+
+
+def shaped_with(landmark: Landmark, position: Position, text: ShaderText = SHAPED) -> list[str]:
+    (joined,) = compose((ShaderFile(TERRAIN, text),), (effect(FOG, attach(landmark, position, "// added")),))
+    return joined.text.splitlines()
+
+
+def test_the_last_include_is_the_last_include_line() -> None:
+    lines = shaped_with(Landmark.LAST_INCLUDE, Position.AFTER)
+    assert lines.index("// added") == 3
+
+
+def test_an_include_of_an_earlier_version_is_an_include_too() -> None:
+    text = ShaderText("#version 330\n#moj_import <minecraft:fog.glsl>\nvoid main() {\n}\n")
+    assert shaped_with(Landmark.LAST_INCLUDE, Position.AFTER, text).index("// added") == 2
+
+
+def test_the_last_input_is_the_last_top_level_in_declaration() -> None:
+    lines = shaped_with(Landmark.LAST_INPUT, Position.AFTER)
+    assert lines[lines.index("// added") - 1] == "flat in int Face;"
+
+
+def test_the_last_output_is_the_last_top_level_out_declaration() -> None:
+    lines = shaped_with(Landmark.LAST_OUTPUT, Position.AFTER)
+    assert lines[lines.index("// added") - 1] == "layout(location = 1) out vec4 colour;"
+
+
+def test_main_is_the_line_that_opens_main() -> None:
+    lines = shaped_with(Landmark.MAIN, Position.BEFORE)
+    assert lines[lines.index("// added") + 1] == "void main() {"
+
+
+def test_the_end_of_main_is_the_brace_that_closes_main_and_not_one_inside_it() -> None:
+    lines = shaped_with(Landmark.END_OF_MAIN, Position.BEFORE)
+    assert lines.index("// added") == len(lines) - 2
+    assert lines[-1] == "}"
+
+
+def test_a_landmark_the_shader_lacks_is_named() -> None:
+    with pytest.raises(PlaceMissing) as raised:
+        compose((TERRAIN_FILE,), (effect(FOG, attach(Landmark.LAST_INPUT, Position.AFTER, "a();")),))
+    assert str(raised.value) == f"effect fog: {TERRAIN} has no input"
+
+
+def test_two_mains_are_named_rather_than_one_guessed_at() -> None:
+    text = ShaderText("void main() {\n}\nvoid main() {\n}\n")
+    with pytest.raises(PlaceRepeated) as raised:
+        compose((ShaderFile(TERRAIN, text),), (effect(FOG, attach(Landmark.MAIN, Position.BEFORE, "a();")),))
+    assert str(raised.value) == f"effect fog: {TERRAIN} has more than one main"

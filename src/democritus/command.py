@@ -11,11 +11,11 @@ from typing import NewType
 
 import deal
 
-from shader import composer, markers, pack, validator, vanilla
-from shader.effects import Effect, EffectName, lighting, sky, stars, weather
-from shader.pack import PackFolder
-from shader.validator import CompileFailure
-from shader.vanilla import Game, JarPath, ResourceFormat, ShaderFile, Texture, TexturePath
+from democritus import composer, markers, pack, validator, vanilla
+from democritus.effects import Effect, EffectName, lighting, sky, stars, weather
+from democritus.pack import PackFolder
+from democritus.validator import CompileFailure
+from democritus.vanilla import Game, JarPath, ResourceFormat, ShaderFile, Texture, TexturePath
 
 # One line of what the command tells the person.
 Line = NewType("Line", str)
@@ -60,7 +60,7 @@ def game_folder(platform: PlatformName, home: Path, roaming: RoamingFolder | Non
 
 MINECRAFT = game_folder(PlatformName(sys.platform), Path.home(), os.environ.get(ROAMING_VARIABLE))
 GAME_JAR = MINECRAFT / "versions/26.3/26.3.jar"
-PACK_FOLDER = MINECRAFT / "resourcepacks/zigdag-shaders"
+PACK_FOLDER = MINECRAFT / "resourcepacks/Democritus' Stars"
 
 # Order matters where two effects put code at the same place of one shader: it stacks in this order.
 EFFECTS: tuple[Callable[[], Effect], ...] = (
@@ -186,7 +186,7 @@ def build(request: Request) -> ExitCode:
 
 def main() -> int:
     """Build the pack the command line asks for."""
-    parser = argparse.ArgumentParser(prog="shader", description=__doc__)
+    parser = argparse.ArgumentParser(prog="democritus", description=__doc__)
     parser.add_argument("--jar", type=Path, default=GAME_JAR)
     parser.add_argument("--pack", type=Path, default=PACK_FOLDER)
     parser.add_argument("--skip", action="append", default=[], choices=effect_names(), help="leave an effect out")

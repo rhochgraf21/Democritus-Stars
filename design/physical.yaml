@@ -1,35 +1,39 @@
-# The types that pass between the parts belong to the part that describes them: each is recorded here so
-# that the checks know them as structures of the design, and hold every other part to using them as given.
-shader.vanilla:
-  - shader.vanilla
-  - shader.vanilla.Game
-  - shader.vanilla.ResourceFormat
-  - shader.vanilla.ShaderFile
-  - shader.vanilla.Texture
-  - shader.vanilla.Pixel
-shader.effects:
-  - shader.effects
-  - shader.effects.Effect
-  - shader.effects.Attachment
-  - shader.effects.Position
-shader.markers:
-  - shader.markers
-  - shader.markers.Surface
-  - shader.markers.AlphaMark
-  - shader.markers.Signature
-  - shader.markers.Probe
-shader.validator: [shader.validator, shader.validator.CompileFailure]
-shader.effects.stars.catalogue:
+democritus.effects.stars.catalogue:
   - shader.effects.stars.catalogue
   - shader.effects.stars.catalogue.CatalogueStar
-shader.effects.stars.figures:
+democritus.effects.stars.figures:
   - shader.effects.stars.figures
   - shader.effects.stars.figures.FigureLine
   - shader.effects.stars.figures.SkyPlace
-shader.effects.stars.galaxy:
+democritus.effects.stars.galaxy:
   - shader.effects.stars.galaxy
   - shader.effects.stars.galaxy.GalacticDirection
   - shader.effects.stars.galaxy.Glow
   - shader.effects.stars.galaxy.Satellite
   - shader.effects.stars.galaxy.StarSheet
   - shader.effects.stars.galaxy.Bend
+democritus: [shader]
+# The types that pass between the parts belong to the part that describes them: each is recorded here so
+# that the checks know them as structures of the design, and hold every other part to using them as given.
+democritus.vanilla:
+  - shader.vanilla
+  - shader.vanilla.Game
+  - shader.vanilla.ResourceFormat
+  - shader.vanilla.ShaderFile
+  - shader.vanilla.Texture
+  - shader.vanilla.Pixel
+democritus.effects:
+  - shader.effects
+  - shader.effects.Effect
+  - shader.effects.Attachment
+  - shader.effects.Position
+democritus.markers:
+  - shader.markers
+  - shader.markers.Surface
+  - shader.markers.AlphaMark
+  - shader.markers.Signature
+  - shader.markers.Probe
+democritus.validator: [shader.validator, shader.validator.CompileFailure]
+democritus.command: [shader.command]
+democritus.composer: [shader.composer]
+democritus.pack: [shader.pack]

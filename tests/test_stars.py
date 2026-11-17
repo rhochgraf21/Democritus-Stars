@@ -6,8 +6,8 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from shader.composer import compose
-from shader.effects.stars import (
+from democritus.composer import compose
+from democritus.effects.stars import (
     BOX_COUNT,
     BOX_FACES,
     BRIGHTEST,
@@ -49,12 +49,12 @@ from shader.effects.stars import (
     tint_of,
     twinkle,
 )
-from shader.effects.stars import catalogue, figures, galaxy
-from shader.effects.stars.catalogue import ColourIndex, Degrees, Hours, Magnitude
-from shader.effects.stars.figures import SkyPlace
-from shader.effects.stars.galaxy import GalacticDirection, Glow, Reach
-from shader.validator import validate
-from shader.vanilla import Game, ShaderFile
+from democritus.effects.stars import catalogue, figures, galaxy
+from democritus.effects.stars.catalogue import ColourIndex, Degrees, Hours, Magnitude
+from democritus.effects.stars.figures import SkyPlace
+from democritus.effects.stars.galaxy import GalacticDirection, Glow, Reach
+from democritus.validator import validate
+from democritus.vanilla import Game, ShaderFile
 
 VERTEX_SHADER = "core/stars.vsh"
 FRAGMENT_SHADER = "core/stars.fsh"

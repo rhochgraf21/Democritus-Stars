@@ -26,8 +26,8 @@ from typing import NewType
 
 import deal
 
-from shader.effects import Effect, EffectName, GlslCode
-from shader.vanilla import ShaderFile, ShaderPath, ShaderText
+from democritus.effects import Effect, EffectName, GlslCode
+from democritus.vanilla import ShaderFile, ShaderPath, ShaderText
 
 # A share of full, from 0 to 1: one channel of a colour as a shader holds it, or a strength.
 Level = NewType("Level", float)

@@ -11,7 +11,7 @@ from hypothesis import given
 from hypothesis import strategies as st
 from PIL import Image
 
-from shader.markers import (
+from democritus.markers import (
     CHANNEL_MAX,
     CHANNEL_MIN,
     MARKED,
@@ -31,7 +31,7 @@ from shader.markers import (
     mark_of,
     surface_of,
 )
-from shader.vanilla import Channel, Pixel, PixelCount, Texture, TextureMeta, TexturePath
+from democritus.vanilla import Channel, Pixel, PixelCount, Texture, TextureMeta, TexturePath
 
 WATER_STILL = TexturePath("block/water_still.png")
 OAK_LEAVES = TexturePath("block/oak_leaves.png")
@@ -60,7 +60,7 @@ MCMETA = ".mcmeta"
 RGBA = "RGBA"
 
 # The game's client jar, such as the one in .minecraft/versions/26.3/26.3.jar.
-GAME_JAR = "SHADER_GAME_JAR"
+GAME_JAR = "DEMOCRITUS_GAME_JAR"
 
 channels = st.integers(CHANNEL_MIN, CHANNEL_MAX).map(Channel)
 alphas = st.sampled_from((TRANSPARENT, OPAQUE)) | channels

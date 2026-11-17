@@ -21,7 +21,7 @@ from typing import NewType, TypeAlias
 
 import deal
 
-from shader.vanilla import ShaderFile, ShaderPath, ShaderText
+from democritus.vanilla import ShaderFile, ShaderPath, ShaderText
 
 # A name the GLSL preprocessor knows, such as "OIT_ALPHA_ONLY".
 MacroName = NewType("MacroName", str)

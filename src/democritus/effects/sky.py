@@ -31,8 +31,8 @@ from typing import NewType
 
 import deal
 
-from shader.effects import Attachment, Effect, EffectName, GlslCode, Place, Position
-from shader.vanilla import ShaderFile, ShaderPath, ShaderText
+from democritus.effects import Attachment, Effect, EffectName, ExactLine, GlslCode, Landmark, Position
+from democritus.vanilla import ShaderFile, ShaderPath, ShaderText
 
 # One channel of a colour as the shaders hold it, from 0 for none to 1 for full.
 Intensity = NewType("Intensity", float)
@@ -99,7 +99,7 @@ _GRADIENT_TEXT = ShaderText(
     f"""#ifndef PACK_SKY_GLSL
 #define PACK_SKY_GLSL
 
-// Written from shader.effects.sky, which holds the same maths in Python for the tests. Change both.
+// Written from democritus.effects.sky, which holds the same maths in Python for the tests. Change both.
 const float PACK_SKY_HORIZON_HEIGHT = {_GLSL_HORIZON_HEIGHT};
 const float PACK_SKY_HAZE_REACH = {_GLSL_HAZE_REACH};
 
@@ -119,11 +119,8 @@ vec3 {GRADIENT_FUNCTION}(vec3 skyColour, vec3 fogColour, float height) {{
 # locations 0 and 1, and the two stages must agree on the number.
 _DIRECTION_VARYING = "layout(location = 2) {way} vec3 packSkyDirection;"
 
-_VERTEX_LAST_OUTPUT = Place("layout(location = 1) out float cylindricalVertexDistance;")
-_VERTEX_LAST_STATEMENT = Place("cylindricalVertexDistance = fog_cylindrical_distance(Position);")
-_FRAGMENT_LAST_INCLUDE = Place("#include <minecraft:dynamictransforms.glsl>")
-_FRAGMENT_LAST_INPUT = Place("layout(location = 1) in float cylindricalVertexDistance;")
-_FRAGMENT_COLOUR = Place(
+# Only the colour is replaced, so only it is an exact line: the rest needs nothing of the game's text but its shape.
+_FRAGMENT_COLOUR = ExactLine(
     "fragColor = apply_fog(ColorModulator, sphericalVertexDistance, cylindricalVertexDistance,"
     " 0.0, FogSkyEnd, FogSkyEnd, FogSkyEnd, FogColor);"
 )
@@ -146,10 +143,10 @@ _FRAGMENT_GRADIENT = GlslCode(
 )
 
 _ATTACHMENTS = (
-    Attachment(_VERTEX_SHADER, _VERTEX_LAST_OUTPUT, Position.AFTER, GlslCode(_DIRECTION_VARYING.format(way="out"))),
-    Attachment(_VERTEX_SHADER, _VERTEX_LAST_STATEMENT, Position.AFTER, _VERTEX_DIRECTION),
-    Attachment(_FRAGMENT_SHADER, _FRAGMENT_LAST_INCLUDE, Position.AFTER, GRADIENT_INCLUDE_LINE),
-    Attachment(_FRAGMENT_SHADER, _FRAGMENT_LAST_INPUT, Position.AFTER, GlslCode(_DIRECTION_VARYING.format(way="in"))),
+    Attachment(_VERTEX_SHADER, Landmark.LAST_OUTPUT, Position.AFTER, GlslCode(_DIRECTION_VARYING.format(way="out"))),
+    Attachment(_VERTEX_SHADER, Landmark.END_OF_MAIN, Position.BEFORE, _VERTEX_DIRECTION),
+    Attachment(_FRAGMENT_SHADER, Landmark.LAST_INCLUDE, Position.AFTER, GRADIENT_INCLUDE_LINE),
+    Attachment(_FRAGMENT_SHADER, Landmark.LAST_INPUT, Position.AFTER, GlslCode(_DIRECTION_VARYING.format(way="in"))),
     Attachment(_FRAGMENT_SHADER, _FRAGMENT_COLOUR, Position.INSTEAD, _FRAGMENT_GRADIENT),
 )
 

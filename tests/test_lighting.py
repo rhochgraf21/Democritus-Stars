@@ -11,9 +11,9 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from shader.composer import compose
-from shader.effects import Position
-from shader.effects.lighting import (
+from democritus.composer import compose
+from democritus.effects import Position
+from democritus.effects.lighting import (
     BLOCK_LIGHT,
     CLAMP,
     DAY_SKY_FACTOR,
@@ -42,8 +42,8 @@ from shader.effects.lighting import (
     sky_tint,
     sun_share,
 )
-from shader.validator import validate
-from shader.vanilla import Game, ShaderText
+from democritus.validator import validate
+from democritus.vanilla import Game, ShaderText
 
 LEVELS = 16
 TOP_LEVEL = LEVELS - 1

@@ -36,8 +36,8 @@ from typing import NewType
 
 import deal
 
-from shader.effects import Attachment, Effect, EffectName, GlslCode, Place, Position
-from shader.vanilla import ShaderPath
+from democritus.effects import Attachment, Effect, EffectName, ExactLine, GlslCode, Landmark, Position
+from democritus.vanilla import ShaderPath
 
 # A block or sky light level as lightmap.fsh holds it: the level from 0 to 15, divided by 15.
 LightLevel = NewType("LightLevel", float)
@@ -94,13 +94,14 @@ class Colour:
 NAME = EffectName("lighting")
 LIGHTMAP = ShaderPath("core/lightmap.fsh")
 
-# The lines of the game's lightmap.fsh that the code attaches to.
-MAIN = Place("void main() {")
-SKY_LIGHT = Place("color += lightmapInfo.SkyLightColor * sky_brightness;")
-BLOCK_LIGHT = Place(
+# The functions go before main. The rest replace or follow the game's own steps, so they attach to those exact
+# lines: if Mojang changes one of them, the tint may no longer fit, and the build stops instead of guessing.
+MAIN = Landmark.MAIN
+SKY_LIGHT = ExactLine("color += lightmapInfo.SkyLightColor * sky_brightness;")
+BLOCK_LIGHT = ExactLine(
     "vec3 BlockLightColor = mix(lightmapInfo.BlockLightTint, vec3(1.0), 0.9 * parabolicMixFactor(block_level));"
 )
-CLAMP = Place("color = clamp(color, 0.0, 1.0);")
+CLAMP = ExactLine("color = clamp(color, 0.0, 1.0);")
 
 # The sky factor of a clear night and of a clear day, as the day timeline of 26.3 sets them. Rain brings
 # a day down to 0.76 and thunder to 0.60, so bad weather loses part of the sun and keeps the rest.

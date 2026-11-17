@@ -6,12 +6,12 @@ import pytest
 from hypothesis import example, given
 from hypothesis import strategies as st
 
-from shader.composer import compose
-from shader.effects import Attachment, Effect, EffectName, GlslCode, Place, Position
-from shader.effects import weather
-from shader.effects.weather import Colour, Level, overcast
-from shader.validator import validate
-from shader.vanilla import Game, ShaderPath
+from democritus.composer import compose
+from democritus.effects import Attachment, Effect, EffectName, ExactLine, GlslCode, Place, Position
+from democritus.effects import weather
+from democritus.effects.weather import Colour, Level, overcast
+from democritus.validator import validate
+from democritus.vanilla import Game, ShaderPath
 
 EIGHT_BIT = 255
 LOW = 0.02  # an estimate under this thickens no fog that anyone could see
@@ -183,9 +183,9 @@ def test_a_sky_light_as_warm_as_the_limit_is_still_the_overworlds() -> None:
 PROBE = EffectName("probe")
 TERRAIN_FRAGMENT = ShaderPath("core/terrain.fsh")
 TERRAIN_VERTEX = ShaderPath("core/terrain.vsh")
-MAIN = Place("void main() {")
-FRAGMENT_COLOUR_SET = Place("fragColor = calculateFinalColor(color);")
-VERTEX_TEXTURE_SET = Place("texCoord0 = UV0;")
+MAIN = ExactLine("void main() {")
+FRAGMENT_COLOUR_SET = ExactLine("fragColor = calculateFinalColor(color);")
+VERTEX_TEXTURE_SET = ExactLine("texCoord0 = UV0;")
 
 
 def probe(shader: ShaderPath, place: Place, use: str) -> Effect:

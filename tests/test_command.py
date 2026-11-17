@@ -8,9 +8,9 @@ from pathlib import Path
 
 import pytest
 
-from shader.command import BUILT, GAME_JAR, MAC, NOT_BUILT, WINDOWS, PlatformName, RoamingFolder, build, game_folder, requested
-from shader.pack import PACK_META, SHADERS, TEXTURES
-from shader.markers import MARKED
+from democritus.command import BUILT, GAME_JAR, MAC, NOT_BUILT, WINDOWS, PlatformName, RoamingFolder, build, game_folder, requested
+from democritus.pack import PACK_META, SHADERS, TEXTURES
+from democritus.markers import MARKED
 
 # The build's limit, from the requirement.
 SECONDS_ALLOWED = 5.0
@@ -20,7 +20,7 @@ LIGHT_MAP = "core/lightmap.fsh"
 @pytest.fixture(scope="module")
 def jar() -> Path:
     """The jar the tests' game comes from, as conftest's fixture chooses it."""
-    return Path(os.environ.get("SHADER_GAME_JAR", GAME_JAR))
+    return Path(os.environ.get("DEMOCRITUS_GAME_JAR", GAME_JAR))
 
 
 def test_a_build_writes_the_pack(jar: Path, tmp_path: Path) -> None:
@@ -51,7 +51,7 @@ def test_a_build_takes_no_more_than_the_seconds_allowed(jar: Path, tmp_path: Pat
     # there: so the command is run as they run it, in a Python of its own, and the starting of that
     # Python counts. Calling build() here would time it inside the test run instead, where whatever
     # watches the tests slows it many times over: under a tracing tool a 3 second build took 30.
-    command = [sys.executable, "-m", "shader.command", "--jar", str(jar), "--pack", str(tmp_path / "pack")]
+    command = [sys.executable, "-m", "democritus.command", "--jar", str(jar), "--pack", str(tmp_path / "pack")]
     started = time.perf_counter()
     finished = subprocess.run(command, capture_output=True, text=True, check=False)
     taken = time.perf_counter() - started

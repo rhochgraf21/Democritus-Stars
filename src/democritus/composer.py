@@ -3,8 +3,14 @@
 A place is matched against the original text of its shader, never against text that another effect has
 already changed: each effect then means the same thing whichever effects it is built with, and a place
 that a new game version removes or repeats is named, with the effect, rather than guessed at.
+
+A landmark is found by the shape of the shader: its braces, its includes and its top-level declarations.
+The reading is a line at a time and knows no preprocessor, so a landmark inside an #ifdef is taken as it
+stands. That is safe to get wrong in one direction only: the validator compiles every combination of
+defines, so code put where it does not compile stops the build.
 """
 
+import re
 from collections import defaultdict
 from dataclasses import dataclass
 from enum import Enum
@@ -12,14 +18,34 @@ from typing import NewType
 
 import deal
 
-from shader.effects import Attachment, Effect, EffectName, GlslCode, Place, Position
-from shader.vanilla import ShaderFile, ShaderPath, ShaderText
+from democritus.effects import Attachment, Effect, EffectName, ExactLine, GlslCode, Landmark, Place, Position
+from democritus.vanilla import ShaderFile, ShaderPath, ShaderText
 
 # The text of one line of a shader, without its line ending.
 _LineBody = NewType("LineBody", str)
 
 # Which line of a shader's original text, counted from 0.
 _LineIndex = NewType("LineIndex", int)
+
+# How many braces are open where a line starts: 0 at the top of the shader, 1 directly inside main.
+_Depth = NewType("Depth", int)
+
+_TOP = _Depth(0)
+_INSIDE_MAIN = _Depth(1)
+_OPEN = "{"
+_CLOSE = "}"
+_COMMENT = "//"
+
+# 26.3 includes with #include; earlier versions, such as 1.21.11, with #moj_import.
+_INCLUDE_DIRECTIVES = ("#include", "#moj_import")
+
+_MAIN_OPENING = re.compile(r"void\s+main\s*\(\s*(void)?\s*\)\s*\{")
+
+# A top-level declaration of one varying: an optional layout, optional interpolation, the storage qualifier,
+# a type, a name and an optional array size. 26.3 gives every varying a layout; 1.21.11 gave none.
+_VARYING = r"(layout\s*\([^)]*\)\s*)?((flat|smooth|noperspective|centroid)\s+)*{way}\s+\w+\s+\w+(\s*\[[^\]]*\])?\s*;"
+_INPUT = re.compile(_VARYING.format(way="in"))
+_OUTPUT = re.compile(_VARYING.format(way="out"))
 
 
 class _LineEnding(Enum):
@@ -50,9 +76,14 @@ class _Line:
         """The line as it stands in the shader's text."""
         return ShaderText(self.body + self.ending.value)
 
-    def holds(self, place: Place) -> bool:
-        """Whether this line is the place: the same text, once the space around it is stripped."""
-        return self.body.strip() == place
+    @property
+    def code(self) -> str:
+        """The line as the compiler reads it: without a trailing comment, and without the space around it."""
+        return self.body.split(_COMMENT, 1)[0].strip()
+
+    def holds(self, line: ExactLine) -> bool:
+        """Whether this line is the exact line: the same text, once the space around it is stripped."""
+        return self.body.strip() == line
 
     def ended_with(self, ending: _LineEnding) -> "_Line":
         """This line, given an ending if it has none, so that code can follow it."""
@@ -65,6 +96,19 @@ class ComposeError(Exception):
     """An effect that cannot be joined onto the vanilla shaders as it is written."""
 
 
+def _named(place: Place) -> str:
+    """A place as an error names it."""
+    return place.value if isinstance(place, Landmark) else repr(place)
+
+
+def _missing(place: Place) -> str:
+    return f"no {place.value}" if isinstance(place, Landmark) else f"no line {place!r}"
+
+
+def _repeated(place: Place) -> str:
+    return f"more than one {place.value}" if isinstance(place, Landmark) else f"the line {place!r} more than once"
+
+
 @dataclass
 class PlaceMissing(ComposeError):
     """An effect attaches to a place that its vanilla shader lacks."""
@@ -74,7 +118,7 @@ class PlaceMissing(ComposeError):
     place: Place
 
     def __str__(self) -> str:
-        return f"effect {self.effect}: {self.shader} has no line {self.place!r}"
+        return f"effect {self.effect}: {self.shader} has {_missing(self.place)}"
 
 
 @dataclass
@@ -86,7 +130,7 @@ class PlaceRepeated(ComposeError):
     place: Place
 
     def __str__(self) -> str:
-        return f"effect {self.effect}: {self.shader} has the line {self.place!r} more than once"
+        return f"effect {self.effect}: {self.shader} has {_repeated(self.place)}"
 
 
 @dataclass
@@ -98,7 +142,7 @@ class ShaderUnknown(ComposeError):
     place: Place
 
     def __str__(self) -> str:
-        return f"effect {self.effect}: no vanilla shader {self.shader} to attach {self.place!r} to"
+        return f"effect {self.effect}: no vanilla shader {self.shader} to attach {_named(self.place)} to"
 
 
 @dataclass
@@ -111,7 +155,7 @@ class ReplacementsConflict(ComposeError):
     place: Place
 
     def __str__(self) -> str:
-        return f"effects {self.effect} and {self.other} both replace {self.place!r} in {self.shader}"
+        return f"effects {self.effect} and {self.other} both replace {_named(self.place)} in {self.shader}"
 
 
 @dataclass
@@ -197,11 +241,50 @@ def _ending_for(place: _Line, lines: tuple[_Line, ...]) -> _LineEnding:
 
 
 @deal.has()
+@deal.post(lambda result: len(result) == 0 or result[0] == _TOP)
+def _depths(lines: tuple[_Line, ...]) -> tuple[_Depth, ...]:
+    """How many braces are open where each line starts."""
+    depths = []
+    depth = _TOP
+    for line in lines:
+        depths.append(depth)
+        depth = _Depth(depth + line.code.count(_OPEN) - line.code.count(_CLOSE))
+    return tuple(depths)
+
+
+@deal.has()
+def _landmark_lines(landmark: Landmark, lines: tuple[_Line, ...]) -> list[_LineIndex]:
+    """The lines of the shader that are the landmark: one for a last, any number for main and its end."""
+    depths = _depths(lines)
+    top = [_LineIndex(index) for index, depth in enumerate(depths) if depth == _TOP]
+    match landmark:
+        case Landmark.LAST_INCLUDE:
+            return [index for index in top if lines[index].code.startswith(_INCLUDE_DIRECTIVES)][-1:]
+        case Landmark.LAST_INPUT:
+            return [index for index in top if _INPUT.fullmatch(lines[index].code)][-1:]
+        case Landmark.LAST_OUTPUT:
+            return [index for index in top if _OUTPUT.fullmatch(lines[index].code)][-1:]
+        case Landmark.MAIN:
+            return [index for index in top if _MAIN_OPENING.fullmatch(lines[index].code)]
+        case Landmark.END_OF_MAIN:
+            # The first line after the opening that closes the brace main opened.
+            closings = (
+                next((_LineIndex(later) for later in range(opening + 1, len(lines))
+                      if depths[later] == _INSIDE_MAIN and lines[later].code == _CLOSE), None)
+                for opening in _landmark_lines(Landmark.MAIN, lines)
+            )
+            return [closing for closing in closings if closing is not None]
+
+
+@deal.has()
 @deal.raises(PlaceMissing, PlaceRepeated)
 def _find_place(shader: ShaderFile, lines: tuple[_Line, ...], placed: _Placed) -> _LineIndex:
     """Which line of the shader is the place that an attachment names."""
     place = placed.attachment.place
-    found = [_LineIndex(index) for index, line in enumerate(lines) if line.holds(place)]
+    if isinstance(place, Landmark):
+        found = _landmark_lines(place, lines)
+    else:
+        found = [_LineIndex(index) for index, line in enumerate(lines) if line.holds(place)]
     if not found:
         raise PlaceMissing(placed.effect, shader.path, place)
     if len(found) > 1:

@@ -6,8 +6,8 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from shader.composer import compose
-from shader.effects.sky import (
+from democritus.composer import compose
+from democritus.effects.sky import (
     ALL_FOG,
     FULL_LIGHT,
     GRADIENT_FUNCTION,
@@ -28,8 +28,8 @@ from shader.effects.sky import (
     gradient_include,
     sky_colour,
 )
-from shader.validator import validate
-from shader.vanilla import Game, ShaderPath, ShaderText
+from democritus.validator import validate
+from democritus.vanilla import Game, ShaderPath, ShaderText
 
 SKY_VERTEX = ShaderPath("core/sky.vsh")
 SKY_FRAGMENT = ShaderPath("core/sky.fsh")

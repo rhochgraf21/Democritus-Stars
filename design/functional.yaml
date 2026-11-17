@@ -1,11 +1,11 @@
 frs:
-  shader:
+  democritus:
     statements:
-      build: The shader shall build a Minecraft resource pack.
+      build: The democritus shall build a Minecraft resource pack.
 
   # The game's own shaders and textures are the base everything attaches to. Mojang changes them with each
   # version, so this is the one part that knows a version.
-  shader.vanilla:
+  democritus.vanilla:
     serves: [change-the-look.version-port]
     statements:
       read: The vanilla shall read the shaders and the textures of one Minecraft version.
@@ -17,12 +17,12 @@ frs:
   # too small to see.
   # The vertex stage reads the mark from the block texture that the terrain program already has. A vertex
   # sits on the corner of its texture, so which texel to read there is to be worked out when plants is built.
-  shader.markers:
+  democritus.markers:
     serves: [enjoy-the-view.artificial-scenes]
     statements:
       mark: The markers shall give the textures of water, leaves and plants a mark in the texels of each texture that tells the shaders what the surface is.
 
-  shader.effects:
+  democritus.effects:
     serves: [enjoy-the-view.artificial-scenes, enjoy-the-view.slow-frames]
     statements:
       describe: The effects shall describe each change to the look as GLSL code with the vanilla shader that the code attaches to.
@@ -33,20 +33,20 @@ frs:
 
   # The sky is drawn as one flat colour with fog toward the edge of a disc. The water reflects the same
   # gradient, so the horizon in the water meets the horizon in the sky.
-  shader.effects.sky:
+  democritus.effects.sky:
     statements:
       gradient: The sky shall move the colour of the sky toward the fog colour by the height of the direction of view.
 
   # lightmap.fsh draws a 16 by 16 texture once a frame, and every surface reads its light from it. A change
   # there costs nothing per pixel. It is also where shadows live: terrain.vsh has no surface normal and no
   # sun direction, so the sky light level is all a surface knows about being in shade.
-  shader.effects.lighting:
+  democritus.effects.lighting:
     statements:
       colour: The lighting shall map each block light level and each sky light level to a colour in the light map of the game.
       shade: The lighting shall not give a sky light level below 15 a warmer colour than sky light level 15.
       warm: The lighting shall not give block light a colour bluer than the vanilla block light.
 
-  shader.effects.fog:
+  democritus.effects.fog:
     statements:
       density: The fog shall move the colour of each terrain surface toward the fog colour by a density that grows with the distance to the surface and falls with the height of the surface.
       no-wall: The fog shall not change by more than 1 % between two surfaces 1 block apart.
@@ -56,7 +56,7 @@ frs:
   # for the game's clock. The game draws 780 quads for its stars and gives the shader nothing else to draw
   # with: the number of a quad is all that tells one from another, and it is enough to give each quad a
   # place of its own from a table.
-  shader.effects.stars:
+  democritus.effects.stars:
     statements:
       real: The stars shall draw each star as one of the brightest stars of the real sky.
       lines: The stars shall not draw a prominent constellation without the lines of the figure of the constellation.
@@ -67,29 +67,29 @@ frs:
       # camera, and the light is worked out for each pixel of it.
       galaxy: The stars shall not draw the stars of a night without the light of the Milky Way behind the stars.
 
-  shader.effects.stars.catalogue:
+  democritus.effects.stars.catalogue:
     statements:
       list: The catalogue shall give the place, the magnitude and the colour index of each of the brightest stars of the real sky.
 
-  shader.effects.stars.figures:
+  democritus.effects.stars.figures:
     statements:
       lines: The figures shall give the lines of the figure of each prominent constellation.
 
   # A model and not a photograph: the band, the bulge and the Magellanic Clouds are where they are in the
   # real sky, and the star clouds, the dust and the nebulae are noise placed where the real ones gather.
-  shader.effects.stars.galaxy:
+  democritus.effects.stars.galaxy:
     statements:
       light: The galaxy shall give the colour of the light of the Milky Way in each direction of the real sky.
 
-  shader.effects.water:
+  democritus.effects.water:
     statements:
       reflect: The water shall move the colour of each water surface toward the colour of the sky by the angle of view to the surface.
 
-  shader.effects.ripples:
+  democritus.effects.ripples:
     statements:
       waves: The ripples shall change the direction that each water surface reflects with moving waves.
 
-  shader.effects.plants:
+  democritus.effects.plants:
     statements:
       sway: The plants shall move each vertex of leaves and plants with wind.
       # Further than this and leaves pull away from their branches.
@@ -97,11 +97,11 @@ frs:
 
   # The game tells no shader that it is raining. The light map's sky factor drops and the fog colour turns
   # grey, so the weather is an estimate from those two, which the fog uses.
-  shader.effects.weather:
+  democritus.effects.weather:
     statements:
       estimate: The weather shall estimate how overcast the sky is from the fog colour and the sky light of the game.
 
-  shader.composer:
+  democritus.composer:
     serves: [change-the-look.version-port]
     statements:
       join: The composer shall join the effects onto the vanilla shaders.
@@ -112,17 +112,17 @@ frs:
 
   # One shader error and the game switches the whole pack off, so every variant the game compiles is
   # compiled here first.
-  shader.validator:
+  democritus.validator:
     serves: [enjoy-the-view.rejected-pack]
     statements:
       compile: The validator shall compile each built shader under each combination of the defines that the shader tests.
 
-  shader.pack:
+  democritus.pack:
     serves: [change-the-look.slow-feedback]
     statements:
       write: The pack shall write the built shaders and textures as a resource pack in the resource pack folder of the game.
 
-  shader.command:
+  democritus.command:
     serves: [change-the-look.slow-feedback]
     statements:
       run: The command shall build the pack.
@@ -132,28 +132,28 @@ constraints:
   # Each vanilla program is given a fixed set of values by the game. Code that asks for one the program is
   # not given compiles, and then reads nothing in the game. Staying inside the set needs no trial in the game.
   program-values:
-    on: shader.effects
+    on: democritus.effects
     serves: [enjoy-the-view.rejected-pack]
     statement: The effects shall use only the values that the game gives to the vanilla program that the code attaches to.
 
   # Files are read by vanilla, written by pack, and the compiler is run by validator. Everything between
   # them is a calculation, so that it can be tested without the game or the disk.
   pure-markers:
-    on: shader.markers
+    on: democritus.markers
     serves: [change-the-look.slow-feedback]
     check: effects
     with:
       allow: []
 
   pure-effects:
-    on: shader.effects
+    on: democritus.effects
     serves: [change-the-look.slow-feedback]
     check: effects
     with:
       allow: []
 
   pure-composer:
-    on: shader.composer
+    on: democritus.composer
     serves: [change-the-look.slow-feedback]
     check: effects
     with:

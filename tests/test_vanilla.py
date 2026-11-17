@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 from PIL import Image
 
-from shader.vanilla import (
+from democritus.vanilla import (
     Channel,
     EntryAbsent,
     EntryFormat,
@@ -35,7 +35,7 @@ from shader.vanilla import (
 )
 
 # Where a real client jar can be given, so that the tests also read what Mojang ships; never stored in the repository.
-REAL_JAR = "SHADER_GAME_JAR"
+REAL_JAR = "DEMOCRITUS_GAME_JAR"
 
 SHADERS = "assets/minecraft/shaders/"
 TEXTURES = "assets/minecraft/textures/"
