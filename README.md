@@ -3,6 +3,8 @@
 > "No power and no treasure can outweigh the extension of our knowledge." 
 > -- Democritus
 
+Democritus' Stars is a performant resource pack adding the night sky's brightest 780 stars, constellations, and milky way, to vanilla Minecraft.
+
 ![Democritus](assets/democritus.jpg)
 
 Around 2,400 years ago, Democritus deduced the Milky Way band was made of the combined light of countless distant stars too far for our eyes to see individually. Thanks to Democritus’ theories, Galileo’s telescope, Schultze’s study of the eye and Baade’s patient sorting of the stars, we now know the band is full of colour, gold toward the centre and blue further out, and that we see it as grey only because the rods in our eyes for dim light see in greyscale. We know it is made of unfathomably many stars; we know our galaxy is one of many.
