@@ -5,7 +5,6 @@ from types import SimpleNamespace
 import pytest
 from hypothesis import example, given
 from hypothesis import strategies as st
-from zigdag import verifies
 
 from shader.composer import compose
 from shader.effects import Attachment, Effect, EffectName, GlslCode, Place, Position
@@ -90,25 +89,21 @@ def cases(table: dict) -> list:
     return [pytest.param(*values, id=name) for name, values in table.items()]
 
 
-@verifies("shader.effects.weather#estimate")
 @pytest.mark.parametrize(("fog", "sky_light"), cases(CLEAR))
 def test_clear_weather_is_not_overcast_at_any_hour(fog: Colour, sky_light: Colour) -> None:
     assert overcast(fog, sky_light) <= LOW
 
 
-@verifies("shader.effects.weather#estimate")
 @pytest.mark.parametrize(("fog", "sky_light"), cases(WET))
 def test_rain_and_thunder_are_overcast_while_there_is_daylight(fog: Colour, sky_light: Colour) -> None:
     assert overcast(fog, sky_light) == pytest.approx(1.0)
 
 
-@verifies("shader.effects.weather#estimate")
 @pytest.mark.parametrize(("fog", "sky_light"), cases(CANNOT_TELL))
 def test_where_it_cannot_tell_it_says_not_overcast(fog: Colour, sky_light: Colour) -> None:
     assert overcast(fog, sky_light) == 0.0
 
 
-@verifies("shader.effects.weather#estimate")
 @pytest.mark.parametrize(("fog", "sky_light", "estimate"), cases(PARTLY))
 def test_between_clear_and_rain_it_is_in_between(fog: Colour, sky_light: Colour, estimate: float) -> None:
     assert overcast(fog, sky_light) == pytest.approx(estimate, abs=5e-5)
@@ -130,13 +125,11 @@ sky_lights = st.builds(
 )
 
 
-@verifies("shader.effects.weather#estimate")
 @given(fog=colours, sky_light=colours)
 def test_the_estimate_is_always_a_level(fog: Colour, sky_light: Colour) -> None:
     assert 0.0 <= overcast(fog, sky_light) <= 1.0
 
 
-@verifies("shader.effects.weather#estimate")
 @given(fog=air_fogs, sky_light=sky_lights, darker=st.floats(min_value=0.0, max_value=1.0))
 def test_a_darker_fog_of_the_same_tint_is_never_less_overcast(fog: Colour, sky_light: Colour, darker: float) -> None:
     # Rain does not grey the fog, it darkens it. Under one step of an 8-bit channel a fog counts as black,
@@ -175,7 +168,6 @@ def glsl_estimate(fog: Colour, sky_light: Colour) -> float:
 WARMEST_LIGHT = Colour(Level(0.6), Level(0.6), Level(0.5))  # exactly as warm as a sky light may be
 
 
-@verifies("shader.effects.weather#estimate")
 @given(fog=air_fogs | colours, sky_light=sky_lights | colours)
 @example(fog=PLAINS_RAIN, sky_light=RAIN_LIGHT)
 @example(fog=PLAINS_RAIN, sky_light=WARMEST_LIGHT)
@@ -184,7 +176,6 @@ def test_the_glsl_estimate_is_the_python_estimate(fog: Colour, sky_light: Colour
     assert glsl_estimate(fog, sky_light) == pytest.approx(overcast(fog, sky_light), abs=ROUNDING)
 
 
-@verifies("shader.effects.weather#estimate")
 def test_a_sky_light_as_warm_as_the_limit_is_still_the_overworlds() -> None:
     assert overcast(PLAINS_RAIN, WARMEST_LIGHT) == pytest.approx(1.0)
 
@@ -208,7 +199,6 @@ def probe(shader: ShaderPath, place: Place, use: str) -> Effect:
     )
 
 
-@verifies("shader.effects.weather#estimate")
 def test_the_estimate_compiles_in_the_games_terrain_fragment_shader(game: Game) -> None:
     # The fragment stage is not given the light map, so the vertex colour stands in for the sky light.
     use = f"fragColor.a *= {weather.FUNCTION}({weather.FOG_COLOUR_SOURCE}, vertexColor.rgb);"
@@ -217,7 +207,6 @@ def test_the_estimate_compiles_in_the_games_terrain_fragment_shader(game: Game) 
     assert validate(built, game.shaders) == ()
 
 
-@verifies("shader.effects.weather#estimate")
 def test_the_estimate_compiles_from_the_values_the_terrain_vertex_shader_is_given(game: Game) -> None:
     use = (
         "#ifndef OIT_ALPHA_ONLY\n"
@@ -230,7 +219,6 @@ def test_the_estimate_compiles_from_the_values_the_terrain_vertex_shader_is_give
     assert validate(built, game.shaders) == ()
 
 
-@verifies("shader.effects.weather#estimate")
 def test_the_effect_changes_no_shader_and_adds_the_include() -> None:
     made = weather.effect()
     assert made.attachments == ()

@@ -3,13 +3,12 @@ name = "shader"
 version = "0.1.0"
 description = "Builds a Minecraft resource pack of shaders from the game's own shaders and a set of effects."
 requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE"]
 dependencies = ["deal", "pillow"]
 
 [dependency-groups]
-dev = ["pytest", "hypothesis", "zigdag[mutation]"]
-
-[tool.uv.sources]
-zigdag = { path = "..", editable = false }
+dev = ["pytest", "hypothesis"]
 
 [build-system]
 requires = ["hatchling"]

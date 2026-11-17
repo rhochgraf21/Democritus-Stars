@@ -5,7 +5,6 @@ from pathlib import Path
 
 import pytest
 from PIL import Image
-from zigdag import verifies
 
 from shader.pack import NotOurPack, PackFolder, write_pack
 from shader.vanilla import (
@@ -50,7 +49,6 @@ def _files(folder: Path) -> set[Path]:
     return {p.relative_to(folder) for p in folder.rglob("*") if p.is_file()}
 
 
-@verifies("shader.pack#write")
 def test_shaders_land_where_the_game_looks_byte_for_byte(tmp_path: Path) -> None:
     folder = _folder(tmp_path)
     write_pack(folder, FORMAT, (FOG, SKY), ())
@@ -58,7 +56,6 @@ def test_shaders_land_where_the_game_looks_byte_for_byte(tmp_path: Path) -> None
     assert (folder / "assets/minecraft/shaders/core/sky.fsh").read_bytes() == SKY.text.encode()
 
 
-@verifies("shader.pack#write")
 def test_pack_meta_names_the_format(tmp_path: Path) -> None:
     folder = _folder(tmp_path)
     write_pack(folder, FORMAT, (), ())
@@ -68,7 +65,6 @@ def test_pack_meta_names_the_format(tmp_path: Path) -> None:
     assert pack["description"]
 
 
-@verifies("shader.pack#write")
 def test_texture_read_back_has_the_same_pixels(tmp_path: Path) -> None:
     folder = _folder(tmp_path)
     write_pack(folder, FORMAT, (), (WATER, GRASS))
@@ -80,7 +76,6 @@ def test_texture_read_back_has_the_same_pixels(tmp_path: Path) -> None:
             assert image.get_flattened_data() == tuple((p.red, p.green, p.blue, p.alpha) for p in texture.pixels)
 
 
-@verifies("shader.pack#write")
 def test_animation_is_kept_beside_its_texture(tmp_path: Path) -> None:
     folder = _folder(tmp_path)
     write_pack(folder, FORMAT, (), (WATER, GRASS))
@@ -89,7 +84,6 @@ def test_animation_is_kept_beside_its_texture(tmp_path: Path) -> None:
     assert not (textures / "colormap/grass.png.mcmeta").exists()
 
 
-@verifies("shader.pack#write")
 def test_a_rebuild_leaves_nothing_of_the_last_build(tmp_path: Path) -> None:
     folder = _folder(tmp_path)
     write_pack(folder, FORMAT, (FOG, SKY), (WATER,))
@@ -99,7 +93,6 @@ def test_a_rebuild_leaves_nothing_of_the_last_build(tmp_path: Path) -> None:
         shaders / "core/sky.fsh", textures / "colormap/grass.png"}
 
 
-@verifies("shader.pack#write")
 def test_an_empty_folder_is_used(tmp_path: Path) -> None:
     folder = _folder(tmp_path)
     folder.mkdir(parents=True)
@@ -107,7 +100,6 @@ def test_an_empty_folder_is_used(tmp_path: Path) -> None:
     assert (folder / "assets/minecraft/shaders/core/sky.fsh").is_file()
 
 
-@verifies("shader.pack#write")
 def test_a_folder_not_of_ours_is_refused_and_untouched(tmp_path: Path) -> None:
     folder = _folder(tmp_path)
     folder.mkdir(parents=True)
@@ -120,7 +112,6 @@ def test_a_folder_not_of_ours_is_refused_and_untouched(tmp_path: Path) -> None:
     assert (folder / "pack.mcmeta").read_text() == "theirs"
 
 
-@verifies("shader.pack#write")
 def test_a_file_in_place_of_the_folder_is_refused(tmp_path: Path) -> None:
     folder = _folder(tmp_path)
     folder.parent.mkdir(parents=True)

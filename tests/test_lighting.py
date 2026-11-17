@@ -10,7 +10,6 @@ from dataclasses import dataclass, replace
 import pytest
 from hypothesis import given
 from hypothesis import strategies as st
-from zigdag import verifies
 
 from shader.composer import compose
 from shader.effects import Position
@@ -178,27 +177,23 @@ infos = st.builds(
 # ---- colour: every level has a colour the light map can hold -----------------------------------------------------
 
 
-@verifies("shader.effects.lighting#colour")
 @given(levels, levels, infos)
 def test_every_texel_is_a_colour_the_light_map_can_hold(block: LightLevel, sky: LightLevel, info: LightmapInfo) -> None:
     assert all(0.0 <= channel <= 1.0 for channel in channels(light_map_texel(block, sky, info)))
 
 
-@verifies("shader.effects.lighting#colour")
 def test_noon_is_warm_sun_over_cool_shade() -> None:
     assert_colour(light_map_texel(level(0), level(15), NOON), 0.9988, 0.9888, 0.9518)
     assert_colour(light_map_texel(level(0), level(13), NOON), 0.7219, 0.7789, 0.8380)
     assert_colour(light_map_texel(level(0), level(8), NOON), 0.3571, 0.4173, 0.4935)
 
 
-@verifies("shader.effects.lighting#colour")
 def test_a_torch_is_warm_white_at_the_flame_and_amber_at_its_edge() -> None:
     assert_colour(light_map_texel(level(14), level(0), NOON), 0.9769, 0.9062, 0.7409)
     assert_colour(light_map_texel(level(8), level(0), NOON), 0.5861, 0.4097, 0.2250)
     assert_colour(light_map_texel(level(2), level(0), NOON), 0.2043, 0.1587, 0.1204)
 
 
-@verifies("shader.effects.lighting#colour")
 def test_torchlight_glows_warm_against_a_blue_night() -> None:
     moonlit = light_map_texel(level(0), level(15), MIDNIGHT)
     torchlit = light_map_texel(level(12), level(15), MIDNIGHT)
@@ -207,7 +202,6 @@ def test_torchlight_glows_warm_against_a_blue_night() -> None:
     assert torchlit.warmer_than(NEUTRAL)
 
 
-@verifies("shader.effects.lighting#colour")
 @pytest.mark.parametrize("scene", SCENES)
 def test_the_dark_of_a_cave_is_the_games_own(scene: LightmapInfo) -> None:
     # Below the knee the shoulder changes nothing, and with no sky and no block light nothing is tinted.
@@ -219,14 +213,12 @@ def test_the_dark_of_a_cave_is_the_games_own(scene: LightmapInfo) -> None:
     assert channels(light_map_texel(level(0), level(0), scene)) == pytest.approx(channels(expected))
 
 
-@verifies("shader.effects.lighting#colour")
 def test_night_vision_and_the_brightness_slider_still_brighten() -> None:
     plain = light_map_texel(level(0), level(0), MIDNIGHT)
     assert min(channels(light_map_texel(level(0), level(0), NIGHT_VISION))) > 5 * max(channels(plain))
     assert min(channels(light_map_texel(level(0), level(0), BRIGHTEST))) > max(channels(plain))
 
 
-@verifies("shader.effects.lighting#colour")
 def test_the_darkness_effect_still_takes_light_away() -> None:
     assert light_map_texel(level(0), level(0), DARKNESS) == NO_LIGHT
     # A level whose light is under the knee, so that the shoulder has no part in the difference.
@@ -235,14 +227,12 @@ def test_the_darkness_effect_still_takes_light_away() -> None:
     assert_colour(darkened, *(channel - DARKNESS.darkness_scale for channel in channels(undarkened)))
 
 
-@verifies("shader.effects.lighting#colour")
 def test_light_under_the_knee_is_left_as_it_is() -> None:
     assert shoulder(Intensity(0.0)) == 0.0
     assert shoulder(Intensity(0.3)) == 0.3
     assert shoulder(KNEE) == KNEE
 
 
-@verifies("shader.effects.lighting#colour")
 def test_light_over_the_knee_rolls_off_to_white() -> None:
     assert shoulder(Intensity(0.8)) == pytest.approx(0.775)
     assert shoulder(Intensity(1.0)) == pytest.approx(0.9)
@@ -251,12 +241,10 @@ def test_light_over_the_knee_rolls_off_to_white() -> None:
     assert shoulder(Intensity(5.0)) == pytest.approx(WHITE)
 
 
-@verifies("shader.effects.lighting#colour")
 def test_light_below_none_is_none() -> None:
     assert shoulder(Intensity(-0.3)) == 0.0
 
 
-@verifies("shader.effects.lighting#colour")
 def test_the_shoulder_leaves_the_knee_smoothly_and_is_level_at_the_white_point() -> None:
     assert WHITE_POINT == pytest.approx(1.4)
     assert ROLL_OFF == pytest.approx(0.625)
@@ -265,7 +253,6 @@ def test_the_shoulder_leaves_the_knee_smoothly_and_is_level_at_the_white_point()
     assert (shoulder(WHITE_POINT) - shoulder(Intensity(WHITE_POINT - step))) / step == pytest.approx(0.0, abs=1e-4)
 
 
-@verifies("shader.effects.lighting#colour")
 @given(st.floats(-1.0, 3.0), st.floats(-1.0, 3.0))
 def test_more_light_is_never_shown_as_less(one: float, other: float) -> None:
     dimmer, brighter = sorted((one, other))
@@ -283,20 +270,17 @@ def sky_light(sky_level: LightLevel, sky_factor: SkyFactor, sky_light_color: Col
     return times(sky_light_color, sky_tint(sky_level, sky_factor))
 
 
-@verifies("shader.effects.lighting#shade")
 @given(shaded_levels, sky_factors, colours)
 def test_no_sky_level_below_15_is_warmer_than_15(sky: LightLevel, factor: SkyFactor, game_colour: Colour) -> None:
     assert not sky_light(sky, factor, game_colour).warmer_than(sky_light(FULL, factor, game_colour))
 
 
-@verifies("shader.effects.lighting#shade")
 @pytest.mark.parametrize("below", range(TOP_LEVEL))
 def test_by_day_each_step_out_of_the_sun_is_cooler(below: int) -> None:
     nearer = sky_light(level(below + 1), DAY_SKY_FACTOR, NEUTRAL)
     assert nearer.warmer_than(sky_light(level(below), DAY_SKY_FACTOR, NEUTRAL))
 
 
-@verifies("shader.effects.lighting#shade")
 @pytest.mark.parametrize("below", range(TOP_LEVEL))
 def test_by_day_the_whole_light_map_shows_shade_cooler_and_dimmer_than_sun(below: int) -> None:
     sunlit = light_map_texel(level(0), FULL, NOON)
@@ -305,7 +289,6 @@ def test_by_day_the_whole_light_map_shows_shade_cooler_and_dimmer_than_sun(below
     assert all(shade < sun for shade, sun in zip(channels(shaded), channels(sunlit), strict=True))
 
 
-@verifies("shader.effects.lighting#shade")
 def test_the_open_sky_by_day_gets_the_sun_and_deep_shade_none_of_it() -> None:
     assert sky_tint(FULL, DAY_SKY_FACTOR) == SUN
     assert sky_tint(level(0), DAY_SKY_FACTOR) == SHADE
@@ -313,14 +296,12 @@ def test_the_open_sky_by_day_gets_the_sun_and_deep_shade_none_of_it() -> None:
     assert NEUTRAL.warmer_than(SHADE)
 
 
-@verifies("shader.effects.lighting#shade")
 @given(levels)
 def test_by_night_there_is_no_sun_at_any_level(sky: LightLevel) -> None:
     assert sky_tint(sky, NIGHT_SKY_FACTOR) == SHADE
     assert sky_tint(sky, SkyFactor(0.0)) == SHADE
 
 
-@verifies("shader.effects.lighting#shade")
 def test_the_sun_falls_off_fast_with_the_sky_level() -> None:
     assert SUN_REACH == 8.0
     assert sun_share(FULL, DAY_SKY_FACTOR) == 1.0
@@ -329,7 +310,6 @@ def test_the_sun_falls_off_fast_with_the_sky_level() -> None:
     assert sun_share(level(0), DAY_SKY_FACTOR) == 0.0
 
 
-@verifies("shader.effects.lighting#shade")
 def test_weather_and_dusk_take_part_of_the_sun() -> None:
     assert (NIGHT_SKY_FACTOR, DAY_SKY_FACTOR) == (0.24, 1.0)
     assert sun_share(FULL, SkyFactor(0.7625)) == pytest.approx(0.76807, abs=1e-5)
@@ -338,13 +318,11 @@ def test_weather_and_dusk_take_part_of_the_sun() -> None:
     assert sun_share(level(14), SkyFactor(0.62)) == pytest.approx(0.28792, abs=1e-5)
 
 
-@verifies("shader.effects.lighting#shade")
 def test_a_sky_factor_past_a_clear_day_is_a_clear_day() -> None:
     # The end flash adds to the sky factor.
     assert sun_share(FULL, SkyFactor(2.0)) == 1.0
 
 
-@verifies("shader.effects.lighting#shade")
 def test_warmer_is_more_red_for_the_blue() -> None:
     assert colour(0.5, 0.2, 0.4).warmer_than(colour(0.5, 0.9, 0.5))
     assert not colour(0.5, 0.9, 0.5).warmer_than(colour(0.5, 0.2, 0.4))
@@ -352,14 +330,12 @@ def test_warmer_is_more_red_for_the_blue() -> None:
     assert colour(0.3, 0.0, 0.0).warmer_than(colour(0.3, 0.0, 0.1))
 
 
-@verifies("shader.effects.lighting#shade")
 def test_a_colour_mixes_toward_another_channel_by_channel() -> None:
     assert_colour(colour(0.0, 0.4, 1.0).mixed(colour(1.0, 0.8, 0.5), Share(0.25)), 0.25, 0.5, 0.875)
     assert colour(0.1, 0.2, 0.3).mixed(colour(0.9, 0.8, 0.7), Share(0.0)) == colour(0.1, 0.2, 0.3)
     assert_colour(colour(0.1, 0.2, 0.3).mixed(colour(0.9, 0.8, 0.7), Share(1.0)), 0.9, 0.8, 0.7)
 
 
-@verifies("shader.effects.lighting#shade")
 def test_a_colour_is_within_two_others_when_every_channel_is() -> None:
     weakest, strongest = colour(0.2, 0.3, 0.4), colour(0.6, 0.7, 0.8)
     assert weakest.within(weakest, strongest)
@@ -375,14 +351,12 @@ def test_a_colour_is_within_two_others_when_every_channel_is() -> None:
 # ---- warm: block light is never bluer than the game's -----------------------------------------------------------
 
 
-@verifies("shader.effects.lighting#warm")
 @given(levels, colours)
 def test_block_light_is_never_bluer_than_the_games(block: LightLevel, tint: Colour) -> None:
     vanilla = game_block_light(block, tint)
     assert not vanilla.warmer_than(times(vanilla, fire_tint(block)))
 
 
-@verifies("shader.effects.lighting#warm")
 @given(st.floats(0.0, 1.0).map(LightLevel))
 def test_the_fire_tint_only_takes_green_and_blue_away(block: LightLevel) -> None:
     tint = fire_tint(block)
@@ -390,7 +364,6 @@ def test_the_fire_tint_only_takes_green_and_blue_away(block: LightLevel) -> None
     assert 0.0 < tint.blue < tint.green < tint.red
 
 
-@verifies("shader.effects.lighting#warm")
 def test_fire_is_amber_at_the_edge_of_its_reach_and_warm_white_at_the_flame() -> None:
     assert fire_tint(level(0)) == EMBER == colour(1.0, 0.62, 0.30)
     assert_colour(fire_tint(FULL), *channels(FLAME))
@@ -398,7 +371,6 @@ def test_fire_is_amber_at_the_edge_of_its_reach_and_warm_white_at_the_flame() ->
     assert_colour(fire_tint(LightLevel(0.5)), 1.0, 0.77, 0.54)
 
 
-@verifies("shader.effects.lighting#warm")
 @pytest.mark.parametrize("below", range(TOP_LEVEL))
 def test_fire_is_warmer_the_further_from_the_flame(below: int) -> None:
     assert fire_tint(level(below)).warmer_than(fire_tint(level(below + 1)))
@@ -450,12 +422,10 @@ def code_at(place: str) -> tuple[Position, str]:
     return attachment.position, attachment.code
 
 
-@verifies("shader.effects.lighting#colour")
 def test_the_glsl_holds_the_constants_and_the_lines_of_the_python_maths() -> None:
     assert code_at(MAIN) == (Position.BEFORE, GLSL_CONSTANTS + GLSL_FUNCTIONS)
 
 
-@verifies("shader.effects.lighting#shade")
 def test_the_games_sky_light_is_kept_and_seen_through_the_sky_tint() -> None:
     assert code_at(SKY_LIGHT) == (
         Position.INSTEAD,
@@ -463,17 +433,14 @@ def test_the_games_sky_light_is_kept_and_seen_through_the_sky_tint() -> None:
     )
 
 
-@verifies("shader.effects.lighting#warm")
 def test_the_games_block_light_is_kept_and_seen_through_the_fire_tint() -> None:
     assert code_at(BLOCK_LIGHT) == (Position.AFTER, "    BlockLightColor *= packFireTint(block_level);\n")
 
 
-@verifies("shader.effects.lighting#colour")
 def test_the_shoulder_comes_before_the_games_clamp() -> None:
     assert code_at(CLAMP) == (Position.BEFORE, "    color = packShoulder(color);\n")
 
 
-@verifies("shader.effects.lighting#colour")
 def test_the_effect_is_the_lighting_of_the_light_map_alone() -> None:
     lighting = effect()
     assert lighting.name == NAME == "lighting"
@@ -489,7 +456,6 @@ def built_light_map(game: Game) -> ShaderText:
     return built.text
 
 
-@verifies("shader.effects.lighting#colour")
 def test_the_code_sits_at_its_places_in_the_real_light_map(game: Game) -> None:
     text = built_light_map(game)
     assert GLSL_FUNCTIONS + "void main() {\n" in text
@@ -499,7 +465,6 @@ def test_the_code_sits_at_its_places_in_the_real_light_map(game: Game) -> None:
     assert "sky_brightness * packSkyTint(sky_level, lightmapInfo.SkyFactor);\n" in text
 
 
-@verifies("shader.effects.lighting#colour")
 def test_the_game_keeps_its_own_steps_around_the_code(game: Game) -> None:
     (vanilla,) = (shader.text for shader in game.shaders if shader.path == LIGHTMAP)
     restored = built_light_map(game)
@@ -509,6 +474,5 @@ def test_the_game_keeps_its_own_steps_around_the_code(game: Game) -> None:
     assert restored == vanilla
 
 
-@verifies("shader.effects.lighting#colour")
 def test_the_built_light_map_compiles_as_the_game_compiles_it(game: Game) -> None:
     assert validate(compose(game.shaders, (effect(),)), game.shaders) == ()

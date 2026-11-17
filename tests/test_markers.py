@@ -10,7 +10,6 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 from PIL import Image
-from zigdag import verifies
 
 from shader.markers import (
     CHANNEL_MAX,
@@ -127,14 +126,12 @@ def water_textures(draw: st.DrawFn) -> Texture:
     return Texture(draw(water_paths), PixelCount(width), PixelCount(height), tuple(texels), meta)
 
 
-@verifies("shader.markers#mark")
 def test_water_is_marked_in_alpha_and_leaves_and_plants_in_colour() -> None:
     assert isinstance(mark_of(Surface.WATER), AlphaMark)
     assert isinstance(mark_of(Surface.LEAVES), Signature)
     assert isinstance(mark_of(Surface.PLANT), Signature)
 
 
-@verifies("shader.markers#mark")
 def test_each_surface_has_its_own_mark() -> None:
     leaves, plant = mark_of(Surface.LEAVES), mark_of(Surface.PLANT)
     assert len({mark_of(surface) for surface in Surface}) == len(Surface)
@@ -142,14 +139,12 @@ def test_each_surface_has_its_own_mark() -> None:
     assert bits_of(leaves) != bits_of(plant)
 
 
-@verifies("shader.markers#mark")
 def test_the_water_mark_is_neither_transparent_nor_opaque() -> None:
     water = mark_of(Surface.WATER)
     assert isinstance(water, AlphaMark)
     assert water.alpha not in (TRANSPARENT, OPAQUE)
 
 
-@verifies("shader.markers#mark")
 def test_no_signature_is_all_zeros_or_all_ones() -> None:
     for surface in (Surface.LEAVES, Surface.PLANT):
         signature = mark_of(surface)
@@ -158,7 +153,6 @@ def test_no_signature_is_all_zeros_or_all_ones() -> None:
         assert bits_of(signature) not in ((0, 0, 0), (STEP - 1, STEP - 1, STEP - 1))
 
 
-@verifies("shader.markers#mark")
 def test_each_probe_alone_makes_a_frame_readable() -> None:
     assert len(set(PROBES)) == len(PROBES)
     for probe in PROBES:
@@ -171,7 +165,6 @@ def test_each_probe_alone_makes_a_frame_readable() -> None:
         assert low_bits(seen) == bits_of(PLANT)
 
 
-@verifies("shader.markers#mark")
 def test_textures_are_told_apart_by_name() -> None:
     assert surface_of(WATER_STILL) is Surface.WATER
     assert surface_of(OAK_LEAVES) is Surface.LEAVES
@@ -180,20 +173,17 @@ def test_textures_are_told_apart_by_name() -> None:
         assert surface_of(unmarked) is None
 
 
-@verifies("shader.markers#mark")
 def test_every_marked_texture_is_of_a_surface() -> None:
     assert all(surface_of(path) is not None for path in MARKED)
     assert {surface_of(path) for path in MARKED} == set(Surface)
 
 
-@verifies("shader.markers#mark")
 def test_every_water_texel_takes_the_water_alpha() -> None:
     assert isinstance(WATER, AlphaMark)
     water = strip(WATER_STILL, pixel(10, 20, 30, 180), pixel(40, 50, 60, 0), meta=ANIMATION)
     assert mark((water,)) == (strip(WATER_STILL, pixel(10, 20, 30, WATER.alpha), pixel(40, 50, 60, 0), meta=ANIMATION),)
 
 
-@verifies("shader.markers#mark")
 def test_an_opaque_leaf_texel_moves_to_the_nearest_colour_with_the_signature() -> None:
     assert bits_of(LEAVES) == (4, 6, 4)  # the expected values below are worked out for this signature
     leaves = sprite(OAK_LEAVES, pixel(101, 150, 201, OPAQUE))
@@ -201,7 +191,6 @@ def test_an_opaque_leaf_texel_moves_to_the_nearest_colour_with_the_signature() -
     assert set(marked.pixels) == {pixel(100, 150, 204, OPAQUE)}
 
 
-@verifies("shader.markers#mark")
 def test_a_channel_at_the_end_of_its_range_moves_inward() -> None:
     assert bits_of(PLANT) == (6, 2, 1)  # the expected values below are worked out for this signature
     grass = sprite(SHORT_GRASS, pixel(CHANNEL_MIN, CHANNEL_MAX, CHANNEL_MAX, OPAQUE))
@@ -209,7 +198,6 @@ def test_a_channel_at_the_end_of_its_range_moves_inward() -> None:
     assert set(marked.pixels) == {pixel(6, 250, 249, OPAQUE)}
 
 
-@verifies("shader.markers#mark")
 def test_texels_that_are_not_opaque_are_left_as_they_are() -> None:
     hole = pixel(1, 2, 3, TRANSPARENT)
     half = pixel(4, 5, 6, HALF_ALPHA)
@@ -221,7 +209,6 @@ def test_texels_that_are_not_opaque_are_left_as_they_are() -> None:
     assert marked.pixels[probe_index(PROBES[0])] != opaque
 
 
-@verifies("shader.markers#mark")
 def test_a_frame_with_no_opaque_probe_is_refused() -> None:
     hole = pixel(0, 0, 0, TRANSPARENT)
     readable_first = {probe_index(PROBES[0]): pixel(5, 5, 5, OPAQUE)}
@@ -231,14 +218,12 @@ def test_a_frame_with_no_opaque_probe_is_refused() -> None:
     assert str(SEAGRASS) in str(refused.value)
 
 
-@verifies("shader.markers#mark")
 def test_an_opaque_texel_beside_the_probes_does_not_make_a_frame_readable() -> None:
     corner = {0: pixel(5, 5, 5, OPAQUE)}
     with pytest.raises(UnreadableFrame):
         mark((sprite(SHORT_GRASS, pixel(0, 0, 0, TRANSPARENT), opaque=corner),))
 
 
-@verifies("shader.markers#mark")
 @pytest.mark.parametrize(("width", "height"), [(32, 32), (16, 24), (8, 16), (16, 0)])
 def test_a_leaf_or_plant_texture_of_another_size_is_refused(width: int, height: int) -> None:
     texels = (pixel(5, 5, 5, OPAQUE),) * (width * height)
@@ -248,7 +233,6 @@ def test_a_leaf_or_plant_texture_of_another_size_is_refused(width: int, height: 
     assert str(OAK_LEAVES) in str(refused.value)
 
 
-@verifies("shader.markers#mark")
 def test_textures_keep_their_order() -> None:
     grass = sprite(SHORT_GRASS, pixel(1, 2, 3, OPAQUE))
     leaves = sprite(OAK_LEAVES, pixel(4, 5, 6, OPAQUE))
@@ -256,7 +240,6 @@ def test_textures_keep_their_order() -> None:
     assert mark(()) == ()
 
 
-@verifies("shader.markers#mark")
 def test_a_texture_that_is_not_marked_is_refused() -> None:
     with pytest.raises(UnmarkedTexture) as refused:
         mark((sprite(OAK_LEAVES, pixel(1, 2, 3, OPAQUE)), strip(STONE, pixel(1, 2, 3, OPAQUE))))
@@ -264,7 +247,6 @@ def test_a_texture_that_is_not_marked_is_refused() -> None:
     assert str(STONE) in str(refused.value)
 
 
-@verifies("shader.markers#mark")
 @given(readable_sprites())
 def test_a_leaf_or_plant_keeps_its_alpha_and_carries_its_signature_in_every_opaque_texel(original: Texture) -> None:
     (marked,) = mark((original,))
@@ -293,7 +275,6 @@ def test_a_leaf_or_plant_keeps_its_alpha_and_carries_its_signature_in_every_opaq
         assert low_bits(seen) == bits_of(signature)
 
 
-@verifies("shader.markers#mark")
 @given(water_textures())
 def test_water_changes_only_the_alpha_of_texels_that_are_not_transparent(original: Texture) -> None:
     assert isinstance(WATER, AlphaMark)
@@ -347,8 +328,6 @@ def _cells(texture: Texture) -> tuple[Texture, ...]:
     )
 
 
-# Not linked to shader.markers#mark: in a run without the jar it is skipped, and zigdag reads a linked test
-# that ran no code of the markers as linked to the wrong thing.
 @pytest.mark.skipif(GAME_JAR not in os.environ, reason=f"{GAME_JAR} names no game jar")
 def test_the_game_marks_as_planned_and_no_other_block_texture_carries_a_mark() -> None:
     with zipfile.ZipFile(Path(os.environ[GAME_JAR])) as jar:

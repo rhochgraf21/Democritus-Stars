@@ -3,7 +3,6 @@
 import pytest
 from hypothesis import assume, given
 from hypothesis import strategies as st
-from zigdag import verifies
 
 from shader.composer import (
     IncludeReplacesVanilla,
@@ -43,13 +42,11 @@ def composed_text(*effects: Effect, vanilla: tuple[ShaderFile, ...] = (TERRAIN_F
     return joined.text
 
 
-@verifies("shader.composer#join")
 def test_before_goes_on_the_lines_before_the_place() -> None:
     fog = effect(FOG, attach(MAIN, Position.BEFORE, "#moj_import <fog.glsl>"))
     assert composed_text(fog) == "#version 330\n\n#moj_import <fog.glsl>\nvoid main() {\n    fragColor = color;\n}\n"
 
 
-@verifies("shader.composer#join")
 def test_after_goes_on_the_lines_after_the_place() -> None:
     fog = effect(FOG, attach(OUTPUT, Position.AFTER, "fragColor.rgb *= 0.5;\nfragColor.a = 1.0;\n"))
     assert composed_text(fog) == (
@@ -57,19 +54,16 @@ def test_after_goes_on_the_lines_after_the_place() -> None:
     )
 
 
-@verifies("shader.composer#join")
 def test_instead_replaces_the_place() -> None:
     fog = effect(FOG, attach(OUTPUT, Position.INSTEAD, "fragColor = fogged(color);"))
     assert composed_text(fog) == "#version 330\n\nvoid main() {\nfragColor = fogged(color);\n}\n"
 
 
-@verifies("shader.composer#join")
 def test_empty_code_instead_removes_the_place() -> None:
     fog = effect(FOG, attach(OUTPUT, Position.INSTEAD, ""))
     assert composed_text(fog) == "#version 330\n\nvoid main() {\n}\n"
 
 
-@verifies("shader.composer#join")
 def test_code_at_one_place_stacks_in_the_order_of_the_effects() -> None:
     fog = effect(FOG, attach(OUTPUT, Position.BEFORE, "a();"), attach(OUTPUT, Position.AFTER, "c();"))
     sky = effect(
@@ -81,7 +75,6 @@ def test_code_at_one_place_stacks_in_the_order_of_the_effects() -> None:
     assert composed_text(fog, sky) == "#version 330\n\nvoid main() {\na();\nb();\nx();\nc();\nd();\n}\n"
 
 
-@verifies("shader.composer#join")
 def test_places_are_found_in_the_original_text() -> None:
     # The sky's code holds the fog's place; the fog still attaches to the game's own line, once.
     sky = effect(SKY, attach(MAIN, Position.AFTER, "fragColor = color;"))
@@ -91,7 +84,6 @@ def test_places_are_found_in_the_original_text() -> None:
     )
 
 
-@verifies("shader.composer#join")
 def test_crlf_text_keeps_its_endings_and_code_takes_them() -> None:
     text = ShaderText("void main() {\r\n    fragColor = color;\r\n}\r\n")
     fog = effect(FOG, attach(OUTPUT, Position.AFTER, "a();\nb();"))
@@ -100,27 +92,23 @@ def test_crlf_text_keeps_its_endings_and_code_takes_them() -> None:
     )
 
 
-@verifies("shader.composer#join")
 def test_code_after_a_last_line_without_ending_is_put_on_its_own_line() -> None:
     text = ShaderText("void main() {\n}")
     fog = effect(FOG, attach(Place("}"), Position.AFTER, "// end"))
     assert composed_text(fog, vanilla=(ShaderFile(TERRAIN, text),)) == "void main() {\n}\n// end\n"
 
 
-@verifies("shader.composer#join")
 def test_code_in_a_text_without_endings_ends_with_lf() -> None:
     fog = effect(FOG, attach(Place("}"), Position.BEFORE, "// end"))
     assert composed_text(fog, vanilla=(ShaderFile(TERRAIN, ShaderText("}")),)) == "// end\n}"
 
 
-@verifies("shader.composer#join")
 def test_code_before_a_last_line_without_ending_takes_the_shaders_ending() -> None:
     text = ShaderText("void main() {\r\n}")
     fog = effect(FOG, attach(Place("}"), Position.BEFORE, "// end"))
     assert composed_text(fog, vanilla=(ShaderFile(TERRAIN, text),)) == "void main() {\r\n// end\r\n}"
 
 
-@verifies("shader.composer#join")
 def test_only_changed_shaders_and_includes_are_returned_sorted_by_path() -> None:
     include = ShaderFile(FOG_INCLUDE, ShaderText("float density() { return 1.0; }\n"))
     fog = effect(FOG, attach(MAIN, Position.BEFORE, "#moj_import <fog_density.glsl>"), includes=(include,))
@@ -129,14 +117,12 @@ def test_only_changed_shaders_and_includes_are_returned_sorted_by_path() -> None
     assert result[1] == include
 
 
-@verifies("shader.composer#join")
 def test_the_same_include_from_two_effects_is_returned_once() -> None:
     include = ShaderFile(FOG_INCLUDE, ShaderText("float density();\n"))
     result = compose((TERRAIN_FILE,), (effect(FOG, includes=(include,)), effect(SKY, includes=(include,))))
     assert result == (include,)
 
 
-@verifies("shader.composer#join")
 def test_two_includes_of_one_path_with_different_text_name_both_effects() -> None:
     first = ShaderFile(FOG_INCLUDE, ShaderText("float density();\n"))
     second = ShaderFile(FOG_INCLUDE, ShaderText("float density(float height);\n"))
@@ -146,7 +132,6 @@ def test_two_includes_of_one_path_with_different_text_name_both_effects() -> Non
     assert "fog" in str(raised.value) and "sky" in str(raised.value) and FOG_INCLUDE in str(raised.value)
 
 
-@verifies("shader.composer#join")
 def test_an_include_cannot_replace_a_vanilla_shader() -> None:
     include = ShaderFile(TERRAIN, ShaderText("void main() {}\n"))
     with pytest.raises(IncludeReplacesVanilla) as raised:
@@ -155,7 +140,6 @@ def test_an_include_cannot_replace_a_vanilla_shader() -> None:
     assert "fog" in str(raised.value) and TERRAIN in str(raised.value)
 
 
-@verifies("shader.composer#join")
 def test_an_attachment_to_an_unknown_shader_names_the_effect_and_the_shader() -> None:
     fog = effect(FOG, attach(MAIN, Position.BEFORE, "a();", shader=SKY_SHADER))
     with pytest.raises(ShaderUnknown) as raised:
@@ -164,7 +148,6 @@ def test_an_attachment_to_an_unknown_shader_names_the_effect_and_the_shader() ->
     assert "fog" in str(raised.value) and SKY_SHADER in str(raised.value) and MAIN in str(raised.value)
 
 
-@verifies("shader.composer#join")
 def test_two_replacements_of_one_place_name_both_effects() -> None:
     fog = effect(FOG, attach(OUTPUT, Position.INSTEAD, "a();"))
     sky = effect(SKY, attach(OUTPUT, Position.INSTEAD, "b();"))
@@ -175,7 +158,6 @@ def test_two_replacements_of_one_place_name_both_effects() -> None:
     assert all(name in str(error) for name in ("fog", "sky", TERRAIN, OUTPUT))
 
 
-@verifies("shader.composer#missing-place")
 def test_a_missing_place_names_the_effect_and_the_place() -> None:
     gone = Place("fragColor = linear_fog(color);")
     with pytest.raises(PlaceMissing) as raised:
@@ -184,13 +166,11 @@ def test_a_missing_place_names_the_effect_and_the_place() -> None:
     assert all(name in str(raised.value) for name in ("fog", TERRAIN, gone))
 
 
-@verifies("shader.composer#missing-place")
 def test_a_place_must_be_a_whole_line() -> None:
     with pytest.raises(PlaceMissing):
         compose((TERRAIN_FILE,), (effect(FOG, attach(Place("fragColor"), Position.AFTER, "a();")),))
 
 
-@verifies("shader.composer#repeated-place")
 def test_a_repeated_place_names_the_effect_and_the_place() -> None:
     text = ShaderText("void main() {\n    fragColor = color;\n    fragColor = color;\n}\n")
     fog = effect(FOG, attach(OUTPUT, Position.BEFORE, "a();"))
@@ -212,14 +192,12 @@ def shader_texts(draw: st.DrawFn) -> tuple[list[str], ShaderText]:
     return bodies, ShaderText("".join(body + ending for body in bodies))
 
 
-@verifies("shader.composer#join")
 @given(st.lists(st.text(min_size=1), unique=True).map(lambda paths: [ShaderPath(path) for path in paths]))
 def test_with_no_effects_nothing_is_returned(paths: list[ShaderPath]) -> None:
     vanilla = tuple(ShaderFile(path, TERRAIN_TEXT) for path in paths)
     assert compose(vanilla, ()) == ()
 
 
-@verifies("shader.composer#join")
 @given(shader_texts(), st.data())
 def test_every_line_but_a_replaced_place_survives_in_order(shader: tuple[list[str], ShaderText], data: st.DataObject) -> None:
     bodies, text = shader
@@ -232,7 +210,6 @@ def test_every_line_but_a_replaced_place_survives_in_order(shader: tuple[list[st
     assert all(any(line == body for line in remaining) for body in kept)
 
 
-@verifies("shader.composer#join")
 @given(shader_texts(), st.data())
 def test_code_lands_next_to_its_place(shader: tuple[list[str], ShaderText], data: st.DataObject) -> None:
     bodies, text = shader
@@ -249,7 +226,6 @@ def test_code_lands_next_to_its_place(shader: tuple[list[str], ShaderText], data
     assert joined.text == "".join(line + ending for line in expected)
 
 
-@verifies("shader.composer#join")
 @given(st.permutations((TERRAIN_FILE, SKY_FILE, ShaderFile(ShaderPath("core/stars.vsh"), TERRAIN_TEXT))))
 def test_composing_does_not_depend_on_the_order_of_the_shaders(vanilla: list[ShaderFile]) -> None:
     effects = (
@@ -259,7 +235,6 @@ def test_composing_does_not_depend_on_the_order_of_the_shaders(vanilla: list[Sha
     assert compose(tuple(vanilla), effects) == compose((TERRAIN_FILE, SKY_FILE), effects)
 
 
-@verifies("shader.composer#missing-place")
 @given(shader_texts(), line_bodies, st.sampled_from(Position))
 def test_any_place_the_shader_lacks_is_named(
     shader: tuple[list[str], ShaderText], place: str, position: Position
@@ -272,7 +247,6 @@ def test_any_place_the_shader_lacks_is_named(
     assert (raised.value.effect, raised.value.shader, raised.value.place) == (FOG, TERRAIN, place)
 
 
-@verifies("shader.composer#repeated-place")
 @given(shader_texts(), st.data())
 def test_any_place_the_shader_repeats_is_named(shader: tuple[list[str], ShaderText], data: st.DataObject) -> None:
     bodies, text = shader

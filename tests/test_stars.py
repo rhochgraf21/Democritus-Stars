@@ -5,7 +5,6 @@ import math
 import pytest
 from hypothesis import given
 from hypothesis import strategies as st
-from zigdag import verifies
 
 from shader.composer import compose
 from shader.effects.stars import (
@@ -112,14 +111,12 @@ def find(hours: float, degrees: float) -> catalogue.CatalogueStar:
 # ---- catalogue: the brightest stars of the real sky --------------------------------------------------------------
 
 
-@verifies("shader.effects.stars.catalogue#list")
 def test_the_catalogue_holds_a_star_for_every_quad_the_game_draws_brightest_first() -> None:
     stars = catalogue.stars()
     assert len(stars) == QUAD_COUNT
     assert [star.magnitude for star in stars] == sorted(star.magnitude for star in stars)
 
 
-@verifies("shader.effects.stars.catalogue#list")
 @pytest.mark.parametrize("known", (SIRIUS, VEGA, POLARIS))
 def test_the_catalogue_holds_well_known_stars_where_and_as_bright_as_they_are(known: tuple[float, float, float]) -> None:
     hours, degrees, magnitude = known
@@ -132,13 +129,11 @@ def test_the_catalogue_holds_well_known_stars_where_and_as_bright_as_they_are(kn
 # ---- figures: the lines of the constellations -----------------------------------------------------------------------
 
 
-@verifies("shader.effects.stars.figures#lines")
 def test_the_figures_leave_more_quads_for_stars_than_they_take_for_lines() -> None:
     assert 0 < LINE_COUNT == len(figures.lines()) < STAR_COUNT
     assert BOX_COUNT + LINE_COUNT + STAR_COUNT == QUAD_COUNT
 
 
-@verifies("shader.effects.stars.figures#lines")
 def test_the_southern_cross_is_two_lines_between_its_four_stars() -> None:
     # Acrux to Gacrux and Mimosa to Delta Crucis, to a tenth of a degree.
     acrux, gacrux = SkyPlace(Hours(12.443), Degrees(-63.10)), SkyPlace(Hours(12.519), Degrees(-57.11))
@@ -150,7 +145,6 @@ def test_the_southern_cross_is_two_lines_between_its_four_stars() -> None:
     assert any(abs(line.end.declination - gacrux.declination) < 0.1 for line in near)
 
 
-@verifies("shader.effects.stars.figures#lines")
 def test_most_lines_end_at_a_star_that_is_drawn() -> None:
     drawn = [direction_of(SkyPlace(s.right_ascension, s.declination)) for s in drawn_stars()]
     half_a_degree = math.cos(math.radians(0.5))
@@ -163,7 +157,6 @@ def test_most_lines_end_at_a_star_that_is_drawn() -> None:
 # ---- real: each star at its place, brightness and colour ----------------------------------------------------------
 
 
-@verifies("shader.effects.stars#real")
 def test_the_real_sky_s_north_pole_lies_on_the_axis_the_game_turns_the_stars_about() -> None:
     pole = direction_of(SkyPlace(Hours(0.0), Degrees(90.0)))
     assert (pole.x, pole.y, pole.z) == pytest.approx((-1.0, 0.0, 0.0), abs=CLOSE)
@@ -171,7 +164,6 @@ def test_the_real_sky_s_north_pole_lies_on_the_axis_the_game_turns_the_stars_abo
     assert dot(polaris, pole) > math.cos(math.radians(1.0))
 
 
-@verifies("shader.effects.stars#real")
 @given(sky_places, sky_places, sky_places)
 def test_the_sky_is_turned_and_not_mirrored(one: SkyPlace, two: SkyPlace, three: SkyPlace) -> None:
     def real(place: SkyPlace) -> Direction:
@@ -185,7 +177,6 @@ def test_the_sky_is_turned_and_not_mirrored(one: SkyPlace, two: SkyPlace, three:
     assert dot(direction_of(one), direction_of(two)) == pytest.approx(dot(real(one), real(two)), abs=1e-6)
 
 
-@verifies("shader.effects.stars#real")
 def test_a_brighter_star_is_drawn_brighter_and_larger() -> None:
     stars = catalogue.stars()
     assert gain_of(stars[0].magnitude) == BRIGHTEST and size_of(stars[0].magnitude) == LARGEST
@@ -196,7 +187,6 @@ def test_a_brighter_star_is_drawn_brighter_and_larger() -> None:
     assert brightness(Magnitude(99.0)) == 0.0
 
 
-@verifies("shader.effects.stars#real")
 def test_a_star_has_the_tint_of_its_colour_index() -> None:
     assert tint_of(ColourIndex(-0.2)) is Tint.BLUE_WHITE
     assert tint_of(ColourIndex(0.0)) is Tint.WHITE
@@ -208,7 +198,6 @@ def test_a_star_has_the_tint_of_its_colour_index() -> None:
     assert all(max(c.red, c.green, c.blue) <= 1.0 for c in TINT_COLOURS.values())
 
 
-@verifies("shader.effects.stars#real")
 @given(sky_places, st.floats(min_value=0.05, max_value=1.0))
 def test_a_star_s_quad_is_a_square_about_its_direction_that_faces_the_camera(place: SkyPlace, half_side: float) -> None:
     toward = direction_of(place)
@@ -222,7 +211,6 @@ def test_a_star_s_quad_is_a_square_about_its_direction_that_faces_the_camera(pla
     assert math.sqrt(dot(side, side)) == pytest.approx(2 * half_side, abs=1e-6)
 
 
-@verifies("shader.effects.stars#real")
 @given(st.integers(min_value=0, max_value=QUAD_COUNT * VERTICES_PER_STAR - 1))
 def test_the_four_corners_of_a_quad_belong_to_one_star(vertex: int) -> None:
     star = star_of(VertexIndex(vertex))
@@ -233,7 +221,6 @@ def test_the_four_corners_of_a_quad_belong_to_one_star(vertex: int) -> None:
 # ---- lines: the figures are drawn ------------------------------------------------------------------------------------
 
 
-@verifies("shader.effects.stars#lines")
 def test_every_line_s_quad_faces_the_camera_and_stops_short_of_both_its_ends() -> None:
     for line in figures.lines():
         start, end = direction_of(line.start), direction_of(line.end)
@@ -246,7 +233,6 @@ def test_every_line_s_quad_faces_the_camera_and_stops_short_of_both_its_ends() -
         assert math.sqrt(dot(short_side, short_side)) == pytest.approx(2 * LINE_HALF_WIDTH, abs=1e-6)
 
 
-@verifies("shader.effects.stars#lines")
 def test_the_vertex_stage_draws_the_lines_first_and_the_stars_after(game: Game) -> None:
     vertex = text_of(compose(game.shaders, (effect(),)), VERTEX_SHADER)
     assert f"const int PACK_LINE_COUNT = {LINE_COUNT};" in vertex
@@ -258,13 +244,11 @@ def test_the_vertex_stage_draws_the_lines_first_and_the_stars_after(game: Game) 
 # ---- twinkle and wrap ------------------------------------------------------------------------------------------------
 
 
-@verifies("shader.effects.stars#twinkle")
 @given(star_numbers, clocks)
 def test_a_twinkle_dims_a_star_by_no_more_than_its_depth_and_never_brightens_it(star: int, clock: float) -> None:
     assert GAME_STAR - TWINKLE_DEPTH <= twinkle(StarNumber(star), Clock(clock)) <= GAME_STAR
 
 
-@verifies("shader.effects.stars#twinkle")
 def test_a_star_s_brightness_changes_within_a_second_and_no_two_stars_keep_time() -> None:
     # A second is a twelve-hundredth of the clock.
     second = 1.0 / 1200
@@ -275,13 +259,11 @@ def test_a_star_s_brightness_changes_within_a_second_and_no_two_stars_keep_time(
     assert len({star_hash(StarNumber(star)) for star in range(STAR_COUNT)}) == STAR_COUNT
 
 
-@verifies("shader.effects.stars#wrap")
 @given(star_numbers)
 def test_a_star_is_as_bright_when_the_clock_starts_again_as_when_it_ended(star: int) -> None:
     assert twinkle(StarNumber(star), Clock(1.0)) == pytest.approx(twinkle(StarNumber(star), Clock(0.0)), abs=1e-6)
 
 
-@verifies("shader.effects.stars#twinkle")
 def test_the_vertex_stage_asks_the_game_for_the_clock(game: Game) -> None:
     vertex = text_of(compose(game.shaders, (effect(),)), VERTEX_SHADER)
     assert vertex.index(GLOBALS_INCLUDE) < vertex.index("void main()")
@@ -333,7 +315,6 @@ BESIDE_THE_LANE = 9.0
 MAGELLANIC_CLOUDS = ((280.47, -32.89), (302.80, -44.30))
 
 
-@verifies("shader.effects.stars.galaxy#light")
 @given(galactic_directions)
 def test_the_light_of_the_galaxy_is_a_colour_a_screen_can_show(direction: GalacticDirection) -> None:
     glow = light(direction)
@@ -341,7 +322,6 @@ def test_the_light_of_the_galaxy_is_a_colour_a_screen_can_show(direction: Galact
     assert light(direction) == glow
 
 
-@verifies("shader.effects.stars.galaxy#light")
 def test_the_galaxy_is_a_band_along_its_equator_and_dark_at_its_poles() -> None:
     on_the_band = brightness_of(mean_glow(ALL_ROUND, BESIDE_THE_LANE))
     well_off_it = brightness_of(mean_glow(ALL_ROUND, 60.0))
@@ -349,7 +329,6 @@ def test_the_galaxy_is_a_band_along_its_equator_and_dark_at_its_poles() -> None:
     assert well_off_it < on_the_band / 20
 
 
-@verifies("shader.effects.stars.galaxy#light")
 def test_the_band_is_brightest_toward_the_centre_of_the_galaxy_and_goes_all_the_way_round() -> None:
     toward_the_centre = brightness_of(mean_glow(ABOUT_THE_CENTRE, BESIDE_THE_LANE))
     opposite = brightness_of(mean_glow(ABOUT_THE_ANTICENTRE, BESIDE_THE_LANE))
@@ -357,7 +336,6 @@ def test_the_band_is_brightest_toward_the_centre_of_the_galaxy_and_goes_all_the_
     assert opposite > 0.05
 
 
-@verifies("shader.effects.stars.galaxy#light")
 def test_the_bulge_is_gold_and_the_disc_away_from_it_is_blue() -> None:
     bulge = mean_glow(ABOUT_THE_CENTRE, BESIDE_THE_LANE)
     disc = mean_glow(ABOUT_THE_ANTICENTRE, BESIDE_THE_LANE)
@@ -365,7 +343,6 @@ def test_the_bulge_is_gold_and_the_disc_away_from_it_is_blue() -> None:
     assert disc.blue > disc.green > disc.red
 
 
-@verifies("shader.effects.stars.galaxy#light")
 def test_dust_darkens_the_middle_of_the_band_toward_the_centre_and_takes_the_blue_first() -> None:
     # The middle of the band on the centre's side, six degrees to either side of the equator.
     middle = sorted(
@@ -379,7 +356,6 @@ def test_dust_darkens_the_middle_of_the_band_toward_the_centre_and_takes_the_blu
     assert blueness(darkest) < 0.8 * blueness(brightest)
 
 
-@verifies("shader.effects.stars.galaxy#light")
 @pytest.mark.parametrize("cloud", MAGELLANIC_CLOUDS)
 def test_each_magellanic_cloud_shines_where_the_sky_around_it_is_dark(cloud: tuple[float, float]) -> None:
     longitude, latitude = cloud
@@ -390,13 +366,11 @@ def test_each_magellanic_cloud_shines_where_the_sky_around_it_is_dark(cloud: tup
     assert middle > 5 * elsewhere
 
 
-@verifies("shader.effects.stars.galaxy#light")
 def test_the_band_is_not_even_but_broken_into_star_clouds() -> None:
     along = [brightness_of(light(toward(longitude, BESIDE_THE_LANE))) for longitude in range(90, 270, 3)]
     assert max(along) > 2 * min(along)
 
 
-@verifies("shader.effects.stars.galaxy#light")
 @given(galactic_directions)
 def test_noise_over_the_sky_has_no_step_from_one_place_to_the_next(direction: GalacticDirection) -> None:
     # A hundredth of a degree further round the same latitude circle, or over the pole from it.
@@ -425,7 +399,6 @@ def lit_share(directions: list[GalacticDirection]) -> float:
     return sum(brightness_of(light(direction)) > 0.05 for direction in directions) / len(directions)
 
 
-@verifies("shader.effects.stars.galaxy#light")
 def test_faint_stars_are_points_scattered_over_the_dark_sky_far_from_the_band() -> None:
     patch = directions_across(40.0, 70.0, 120)
     share = lit_share(patch)
@@ -434,7 +407,6 @@ def test_faint_stars_are_points_scattered_over_the_dark_sky_far_from_the_band() 
     assert max(brightness_of(light(direction)) for direction in patch) > 0.2
 
 
-@verifies("shader.effects.stars.galaxy#light")
 def test_faint_stars_crowd_where_the_band_is_bright() -> None:
     # The edge of the band, above the dust and the thin bright part, against the dark sky far from it.
     def stars_in(patch: list[GalacticDirection]) -> int:
@@ -445,7 +417,6 @@ def test_faint_stars_crowd_where_the_band_is_bright() -> None:
     assert stars_in(directions_across(90.0, 12.0, 120)) > 3 * stars_in(directions_across(40.0, 70.0, 120))
 
 
-@verifies("shader.effects.stars.galaxy#light")
 def test_a_faint_star_is_no_narrower_than_a_pixel_on_a_coarse_screen() -> None:
     patch = directions_across(40.0, 70.0, 120)
     fine = sum(brightness_of(galaxy.light_toward(direction, Reach(PIXEL / 4))) > 0.05 for direction in patch)
@@ -453,7 +424,6 @@ def test_a_faint_star_is_no_narrower_than_a_pixel_on_a_coarse_screen() -> None:
     assert coarse > fine > 0
 
 
-@verifies("shader.effects.stars#real")
 def test_a_star_s_dot_is_full_over_its_middle_and_gone_at_its_rim() -> None:
     assert dot_strength(0.0, 0.0) == 1.0
     assert dot_strength(0.5, 0.0) == 1.0
@@ -463,7 +433,6 @@ def test_a_star_s_dot_is_full_over_its_middle_and_gone_at_its_rim() -> None:
     assert dot_strength(1.0, 1.0) == 0.0
 
 
-@verifies("shader.effects.stars#real")
 def test_the_faintest_catalogue_star_outshines_the_faint_stars_of_the_galaxy() -> None:
     brightest_faint_star = max(sheet.light for sheet in galaxy.STAR_SHEETS)
     faintest = gain_of(Magnitude(catalogue.FAINTEST))
@@ -472,7 +441,6 @@ def test_the_faintest_catalogue_star_outshines_the_faint_stars_of_the_galaxy() -
     assert (faintest / gain_of(Magnitude(catalogue.BRIGHTEST))) ** 2 > 0.6 * brightest_faint_star
 
 
-@verifies("shader.effects.stars#galaxy")
 def test_the_centre_of_the_galaxy_and_its_pole_lie_where_they_do_among_the_stars() -> None:
     centre = galactic(direction_of(galaxy.CENTRE))
     assert centre.toward_centre == pytest.approx(1.0, abs=1e-4)
@@ -487,7 +455,6 @@ def test_the_centre_of_the_galaxy_and_its_pole_lie_where_they_do_among_the_stars
     assert seen.toward_pole == pytest.approx(expected.toward_pole, abs=2e-3)
 
 
-@verifies("shader.effects.stars#galaxy")
 def test_the_box_shuts_the_camera_in_with_every_face_toward_it_and_no_corner_beyond_the_stars() -> None:
     corners_met: dict[tuple[int, int, int], int] = {}
     for face in BOX_FACES:
@@ -504,7 +471,6 @@ def test_the_box_shuts_the_camera_in_with_every_face_toward_it_and_no_corner_bey
     assert set(corners_met.values()) == {3}
 
 
-@verifies("shader.effects.stars#galaxy")
 def test_the_fragment_stage_paints_the_galaxy_on_the_box_under_the_game_s_fade(game: Game) -> None:
     built = compose(game.shaders, (effect(),))
     vertex, fragment = text_of(built, VERTEX_SHADER), text_of(built, FRAGMENT_SHADER)
@@ -518,14 +484,12 @@ def test_the_fragment_stage_paints_the_galaxy_on_the_box_under_the_game_s_fade(g
 # ---- the effect fits the game ---------------------------------------------------------------------------------------
 
 
-@verifies("shader.effects.stars#real")
 def test_the_effect_compiles_onto_the_game_s_star_shaders(game: Game) -> None:
     built = compose(game.shaders, (effect(),))
     assert {file.path for file in built} == {VERTEX_SHADER, FRAGMENT_SHADER}
     assert validate(built, game.shaders) == ()
 
 
-@verifies("shader.effects.stars#real")
 def test_the_effect_is_the_same_each_time_and_changes_only_the_star_shaders() -> None:
     assert effect() == effect()
     assert effect().name == NAME

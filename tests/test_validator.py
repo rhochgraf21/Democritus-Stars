@@ -5,7 +5,6 @@ import time
 import zipfile
 
 import pytest
-from zigdag import verifies
 
 from shader.validator import CompilerNotFound, IncludeCycle, IncludeNotFound, validate
 from shader.vanilla import ShaderFile, ShaderPath, ShaderText
@@ -44,12 +43,10 @@ def tinted(path: str) -> ShaderFile:
     )
 
 
-@verifies("shader.validator#compile")
 def test_a_good_shader_compiles() -> None:
     assert validate((GOOD,), ()) == ()
 
 
-@verifies("shader.validator#compile")
 def test_an_error_under_one_define_is_named_with_that_define() -> None:
     broken = shader(
         "core/broken.fsh",
@@ -71,7 +68,6 @@ def test_an_error_under_one_define_is_named_with_that_define() -> None:
     assert "core/broken.fsh:6:" in failure.message
 
 
-@verifies("shader.validator#compile")
 def test_an_error_under_two_defines_together_is_found() -> None:
     broken = shader(
         "core/both.fsh",
@@ -91,7 +87,6 @@ def test_an_error_under_two_defines_together_is_found() -> None:
     assert "core/both.fsh:7:" in failure.message
 
 
-@verifies("shader.validator#compile")
 def test_a_broken_include_fails_every_shader_that_includes_it() -> None:
     vanilla = (LIBRARY, tinted("core/first.fsh"), tinted("core/second.fsh"), GOOD)
     failures = validate((BROKEN_LIBRARY,), vanilla)
@@ -99,12 +94,10 @@ def test_a_broken_include_fails_every_shader_that_includes_it() -> None:
     assert all("include/tint.glsl:2:" in f.message for f in failures)
 
 
-@verifies("shader.validator#compile")
 def test_a_built_include_wins_over_the_vanilla_one() -> None:
     assert validate((LIBRARY, tinted("core/first.fsh")), (BROKEN_LIBRARY,)) == ()
 
 
-@verifies("shader.validator#compile")
 def test_a_cutout_compiles_as_the_number_the_game_gives() -> None:
     cutout = shader(
         "core/cutout.fsh",
@@ -136,14 +129,12 @@ def with_main(path: str, colour: str) -> ShaderFile:
     )
 
 
-@verifies("shader.validator#compile")
 def test_a_combination_that_fails_for_vanilla_too_is_not_a_failure_of_the_pack() -> None:
     vanilla = with_main("core/old.fsh", "vec4(1.0)")
     built = with_main("core/old.fsh", "vec4(0.5)")
     assert validate((built,), (vanilla,)) == ()
 
 
-@verifies("shader.validator#compile")
 def test_a_new_shader_is_not_excused_by_a_vanilla_original_it_does_not_have() -> None:
     (failure,) = validate((with_main("core/new.fsh", "vec4(0.5)"),), ())
     assert failure.defines == ("UNUSED_BY_THE_GAME",)
@@ -153,13 +144,11 @@ def never(path: str, *included: str) -> ShaderFile:
     return shader(path, "#version 330", *included, "void main() {", "    undeclared = 1;", "}")
 
 
-@verifies("shader.validator#compile")
 def test_nothing_is_excused_when_the_original_compiles_under_no_combination() -> None:
     (failure,) = validate((never("core/never.fsh"),), (never("core/never.fsh"),))
     assert "core/never.fsh:3:" in failure.message
 
 
-@verifies("shader.validator#compile")
 def test_a_vanilla_shader_that_reaches_no_changed_include_is_not_compiled() -> None:
     # A vanilla shader that compiles under no combination would be reported, were it compiled.
     unchanged = (LIBRARY, never("core/tinted.fsh", "#include <minecraft:tint.glsl>"))
@@ -186,7 +175,6 @@ def switched(path: str, glint: str, emissive: str) -> ShaderFile:
     )
 
 
-@verifies("shader.validator#compile")
 def test_a_combination_the_original_compiles_under_is_held_against_the_pack() -> None:
     vanilla = switched("core/glint.fsh", "fragColor *= 0.5;", "fragColor *= 2.0;")
     built = switched("core/glint.fsh", "fragColor = missing();", "fragColor *= 2.0;")
@@ -194,7 +182,6 @@ def test_a_combination_the_original_compiles_under_is_held_against_the_pack() ->
     assert failure.defines == ("GLINT",)
 
 
-@verifies("shader.validator#compile")
 def test_an_excused_combination_does_not_hide_another_failure() -> None:
     vanilla = switched("core/glint.fsh", "fragColor *= 0.5;", "fragColor = old();")
     built = switched("core/glint.fsh", "fragColor = missing();", "fragColor = old();")
@@ -202,14 +189,12 @@ def test_an_excused_combination_does_not_hide_another_failure() -> None:
     assert failure.defines == ("GLINT",)
 
 
-@verifies("shader.validator#compile")
 def test_a_missing_include_is_named() -> None:
     with pytest.raises(IncludeNotFound) as raised:
         validate((tinted("core/first.fsh"),), ())
     assert (raised.value.include, raised.value.by) == ("include/tint.glsl", "core/first.fsh")
 
 
-@verifies("shader.validator#compile")
 def test_an_include_that_includes_itself_is_named() -> None:
     loop = shader("include/tint.glsl", "#include <minecraft:tint.glsl>")
     with pytest.raises(IncludeCycle) as raised:
@@ -217,7 +202,6 @@ def test_an_include_that_includes_itself_is_named() -> None:
     assert (raised.value.include, raised.value.by) == ("include/tint.glsl", "include/tint.glsl")
 
 
-@verifies("shader.validator#compile")
 def test_a_missing_compiler_is_named(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("PATH", "")
     with pytest.raises(CompilerNotFound):
@@ -233,8 +217,6 @@ def game_shaders(jar: str) -> tuple[ShaderFile, ...]:
         )
 
 
-# Not linked to the statement: zigdag takes a skipped test for one that ran no code of the part, and this one is
-# skipped wherever the game jar is not at hand.
 @pytest.mark.skipif(GAME_JAR not in os.environ, reason=f"{GAME_JAR} names no game jar")
 def test_every_untouched_vanilla_core_shader_compiles() -> None:
     # Built and vanilla are the same files, so a variant that fails is excused only where the game does not use it;

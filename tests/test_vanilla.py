@@ -8,7 +8,6 @@ from pathlib import Path
 
 import pytest
 from PIL import Image
-from zigdag import verifies
 
 from shader.vanilla import (
     Channel,
@@ -94,14 +93,12 @@ def game_entries(**replaced: bytes | str | None) -> dict[str, bytes | str]:
     return {names[k]: v for k, v in entries.items() if v is not None}
 
 
-@verifies("shader.vanilla#read")
 def test_reads_version_and_resource_format(tmp_path: Path) -> None:
     game = read_game(jar(tmp_path, game_entries()), ())
     assert game.version == GameVersion("26.3")
     assert game.resource_format == ResourceFormat(FormatNumber(97), FormatNumber(1))
 
 
-@verifies("shader.vanilla#read")
 def test_reads_only_the_core_and_include_shaders_by_their_path_under_shaders(tmp_path: Path) -> None:
     game = read_game(jar(tmp_path, game_entries()), ())
     assert game.shaders == (
@@ -110,33 +107,28 @@ def test_reads_only_the_core_and_include_shaders_by_their_path_under_shaders(tmp
     )
 
 
-@verifies("shader.vanilla#read")
 def test_reads_exactly_the_wanted_textures_in_the_order_wanted(tmp_path: Path) -> None:
     game = read_game(jar(tmp_path, game_entries()), (STONE, WATER))
     assert [t.path for t in game.textures] == [STONE, WATER]
 
 
-@verifies("shader.vanilla#read")
 def test_decodes_pixels_row_by_row_from_the_top_left(tmp_path: Path) -> None:
     (water,) = read_game(jar(tmp_path, game_entries()), (WATER,)).textures
     assert (water.width, water.height) == (2, 2)
     assert water.pixels == tuple(Pixel(*map(Channel, p)) for p in WATER_PIXELS)
 
 
-@verifies("shader.vanilla#read")
 def test_converts_any_mode_to_rgba(tmp_path: Path) -> None:
     (stone,) = read_game(jar(tmp_path, game_entries()), (STONE,)).textures
     assert stone.pixels == (Pixel(Channel(200), Channel(200), Channel(200), Channel(255)),)
 
 
-@verifies("shader.vanilla#read")
 def test_carries_the_animation_beside_a_texture_and_none_where_there_is_none(tmp_path: Path) -> None:
     water, stone = read_game(jar(tmp_path, game_entries()), (WATER, STONE)).textures
     assert water.meta == TextureMeta(WATER_META)
     assert stone.meta is None
 
 
-@verifies("shader.vanilla#read")
 def test_names_every_wanted_texture_the_jar_lacks(tmp_path: Path) -> None:
     path = jar(tmp_path, game_entries(water=None))
     lava = TexturePath("block/lava_still.png")
@@ -147,7 +139,6 @@ def test_names_every_wanted_texture_the_jar_lacks(tmp_path: Path) -> None:
     assert f"{TEXTURES}{lava}" in str(raised.value) and str(path) in str(raised.value)
 
 
-@verifies("shader.vanilla#read")
 def test_names_a_missing_version_json(tmp_path: Path) -> None:
     with pytest.raises(EntryAbsent) as raised:
         read_game(jar(tmp_path, game_entries(version=None)), ())
@@ -165,7 +156,6 @@ def test_names_a_missing_version_json(tmp_path: Path) -> None:
     ({"id": "26.3", "pack_version": {"resource_major": 97, "resource_minor": True}}, "pack_version.resource_minor",
      FieldKind.WHOLE_NUMBER),
 ])
-@verifies("shader.vanilla#read")
 def test_names_the_field_version_json_lacks(tmp_path: Path, version: dict, field: str, kind: FieldKind) -> None:
     path = jar(tmp_path, game_entries(version=json.dumps(version)))
     with pytest.raises(FieldAbsent) as raised:
@@ -181,7 +171,6 @@ def test_names_the_field_version_json_lacks(tmp_path: Path, version: dict, field
     ({"water": b"not a png"}, f"{TEXTURES}{WATER}", EntryFormat.PNG),
     ({"water_meta": b"\xff"}, f"{TEXTURES}{WATER}.mcmeta", EntryFormat.TEXT),
 ])
-@verifies("shader.vanilla#read")
 def test_names_an_entry_that_cannot_be_decoded(tmp_path: Path, replaced: dict, entry: str,
                                                 expected: EntryFormat) -> None:
     path = jar(tmp_path, game_entries(**replaced))
@@ -191,7 +180,6 @@ def test_names_an_entry_that_cannot_be_decoded(tmp_path: Path, replaced: dict, e
     assert entry in str(raised.value)
 
 
-@verifies("shader.vanilla#read")
 def test_names_a_jar_that_is_not_a_zip_file(tmp_path: Path) -> None:
     path = JarPath(tmp_path / "client.jar")
     path.write_bytes(b"not a zip")
@@ -200,7 +188,6 @@ def test_names_a_jar_that_is_not_a_zip_file(tmp_path: Path) -> None:
     assert raised.value.jar == path and str(path) in str(raised.value)
 
 
-@verifies("shader.vanilla#read")
 def test_names_a_jar_that_is_not_there(tmp_path: Path) -> None:
     path = JarPath(tmp_path / "missing.jar")
     with pytest.raises(JarUnreadable) as raised:
@@ -208,7 +195,6 @@ def test_names_a_jar_that_is_not_there(tmp_path: Path) -> None:
     assert raised.value.jar == path
 
 
-@verifies("shader.vanilla#read")
 def test_lists_the_textures_under_a_folder_in_order_of_path(tmp_path: Path) -> None:
     path = jar(tmp_path, game_entries())
     assert texture_paths(path, TextureFolder("block/")) == (STONE, WATER)
