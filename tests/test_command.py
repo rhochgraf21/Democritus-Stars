@@ -9,10 +9,9 @@ from pathlib import Path
 import pytest
 from zigdag import verifies
 
-from shader.cloudmap import CLOUD_MAP
-from shader.command import BUILT, NOT_BUILT, GAME_JAR, build, requested
+from shader.command import BUILT, GAME_JAR, MAC, NOT_BUILT, WINDOWS, PlatformName, RoamingFolder, build, game_folder, requested
 from shader.pack import PACK_META, SHADERS, TEXTURES
-from shader.seasons import COLOUR_MAPS
+from shader.autumn import COLOUR_MAPS
 
 # The build's limit, from the requirement.
 SECONDS_ALLOWED = 5.0
@@ -26,36 +25,18 @@ def jar() -> Path:
 
 
 @verifies("shader.command#run")
-def test_a_build_writes_the_pack_for_the_season(jar: Path, tmp_path: Path) -> None:
+def test_a_build_writes_the_pack(jar: Path, tmp_path: Path) -> None:
     folder = tmp_path / "pack"
-    assert build(requested("autumn", jar, folder, [])) == BUILT
+    assert build(requested(jar, folder, [])) == BUILT
     assert (folder / PACK_META).is_file()
     assert (folder / SHADERS / LIGHT_MAP).is_file()
     assert all((folder / TEXTURES / colour_map).is_file() for colour_map in COLOUR_MAPS)
 
 
 @verifies("shader.command#run")
-def test_the_filled_cloud_map_goes_only_where_the_clouds_effect_goes(jar: Path, tmp_path: Path) -> None:
-    # Under the game's own cloud shaders the filled map is one slab of cloud over the whole sky.
-    with_clouds, without = tmp_path / "with", tmp_path / "without"
-    assert build(requested("summer", jar, with_clouds, [])) == BUILT
-    assert build(requested("summer", jar, without, ["clouds"])) == BUILT
-    assert (with_clouds / TEXTURES / CLOUD_MAP).is_file()
-    assert not (without / TEXTURES / CLOUD_MAP).exists()
-
-
-@verifies("shader.command#run")
-def test_another_season_gives_other_colours(jar: Path, tmp_path: Path) -> None:
-    build(requested("autumn", jar, tmp_path / "autumn", []))
-    build(requested("winter", jar, tmp_path / "winter", []))
-    grass = TEXTURES / COLOUR_MAPS[0]
-    assert (tmp_path / "autumn" / grass).read_bytes() != (tmp_path / "winter" / grass).read_bytes()
-
-
-@verifies("shader.command#run")
 def test_a_missing_game_is_said_plainly_and_nothing_is_written(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     folder = tmp_path / "pack"
-    assert build(requested("autumn", tmp_path / "no-such.jar", folder, [])) == NOT_BUILT
+    assert build(requested(tmp_path / "no-such.jar", folder, [])) == NOT_BUILT
     assert "not written" in capsys.readouterr().out
     assert not folder.exists()
 
@@ -65,7 +46,7 @@ def test_a_folder_that_is_not_our_pack_is_left_alone(jar: Path, tmp_path: Path) 
     folder = tmp_path / "theirs"
     folder.mkdir()
     (folder / "keep.txt").write_text("someone else's")
-    assert build(requested("autumn", jar, folder, [])) == NOT_BUILT
+    assert build(requested(jar, folder, [])) == NOT_BUILT
     assert [entry.name for entry in folder.iterdir()] == ["keep.txt"]
 
 
@@ -75,9 +56,25 @@ def test_a_build_takes_no_more_than_the_seconds_allowed(jar: Path, tmp_path: Pat
     # there: so the command is run as they run it, in a Python of its own, and the starting of that
     # Python counts. Calling build() here would time it inside the test run instead, where whatever
     # watches the tests slows it many times over: zigdag's watching made a 3 second build take 30.
-    command = [sys.executable, "-m", "shader.command", "--season", "autumn", "--jar", str(jar), "--pack", str(tmp_path / "pack")]
+    command = [sys.executable, "-m", "shader.command", "--jar", str(jar), "--pack", str(tmp_path / "pack")]
     started = time.perf_counter()
     finished = subprocess.run(command, capture_output=True, text=True, check=False)
     taken = time.perf_counter() - started
     assert finished.returncode == BUILT, finished.stdout + finished.stderr
     assert taken <= SECONDS_ALLOWED
+
+
+HOME = Path("/home/player").absolute()
+ROAMING = RoamingFolder("/roaming")
+
+
+@verifies("shader.command#run")
+def test_the_game_is_looked_for_where_the_launcher_of_each_system_puts_it() -> None:
+    assert game_folder(MAC, HOME, None) == HOME / "Library/Application Support/minecraft"
+    assert game_folder(PlatformName("linux"), HOME, None) == HOME / ".minecraft"
+    assert game_folder(WINDOWS, HOME, ROAMING) == Path(ROAMING) / ".minecraft"
+
+
+@verifies("shader.command#run")
+def test_windows_without_a_named_roaming_folder_falls_back_to_the_usual_one() -> None:
+    assert game_folder(WINDOWS, HOME, None) == HOME / "AppData/Roaming/.minecraft"

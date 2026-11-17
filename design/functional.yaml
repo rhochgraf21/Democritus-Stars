@@ -10,10 +10,10 @@ frs:
     statements:
       read: The vanilla shall read the shaders and the textures of one Minecraft version.
 
-  shader.seasons:
+  shader.autumn:
     serves: [enjoy-the-view.artificial-scenes]
     statements:
-      colours: The seasons shall give the grass, foliage and dry foliage colour maps for one season of spring, summer, autumn and winter.
+      colours: The autumn shall give the grass, foliage and dry foliage colour maps the colours of autumn.
 
   # terrain.vsh in 26.3 is given a position, a colour, a texture coordinate and a light level: nothing says
   # which block a surface belongs to. The texture is the only thing the pack controls that reaches the shader.
@@ -56,39 +56,8 @@ frs:
       density: The fog shall move the colour of each terrain surface toward the fog colour by a density that grows with the distance to the surface and falls with the height of the surface.
       no-wall: The fog shall not change by more than 1 % between two surfaces 1 block apart.
 
-  # The cloud pass. The game hides it behind terrain, fades it with distance and colours it for the hour
-  # and the weather. Its pipeline in 26.3 is given the Globals block (RenderPipelines: CLOUDS is built on
-  # the snippet that holds BindGroupLayouts.GLOBALS, and CloudRenderer binds the default uniforms), so the
-  # cloud shaders can ask for the camera's block and the game's clock though the game's own text does not.
-  # With those, a point of the layer knows where it is in the world, and a cloud can be drawn there from
-  # noise instead of from the game's cells. The cells are 12 blocks wide and either full or empty: no real
-  # cloud form fits that grid.
-  shader.effects.clouds:
-    statements:
-      forms: The clouds shall draw the cloud layer as cirrus, altocumulus, cumulus and stratus clouds.
-      # The form comes from the place in the world, so that one sky holds more than one form.
-      region: The clouds shall not give every place of the world the same form of cloud.
-      drift: When the clock of the game advances, the clouds shall move the clouds from east to west.
-      # The clock runs from 0 to 1 in 24000 ticks and starts again.
-      wrap: The clouds shall not change the cloud layer when the clock of the game starts again.
-      # A cloud has a flat base and a top that stands above it, so that it is seen from the side as well.
-      height: The clouds shall not draw a cloud as a flat sheet.
-      # Finer than this a detail falls between pixels and flickers as the camera moves.
-      flicker: The clouds shall not draw a detail of a cloud that is narrower than 2 pixels.
-
-  shader.effects.clouds.noise:
-    statements:
-      level: The noise shall give each place of the cloud layer a level from 0 to 1.
-
-  shader.effects.clouds.forms:
-    statements:
-      column: The forms shall give the density and the height of the cloud over each place of the cloud layer.
-
-  shader.effects.clouds.sight:
-    statements:
-      meet: The sight shall find the cloud that a line of sight through the cloud layer meets.
-
-  # The star pipeline of 26.3 is given the Globals block, like the cloud pipelines, so stars.vsh can ask
+  # The star pipeline of 26.3 is given the Globals block (RenderPipelines: STARS is built on the snippet
+  # that holds BindGroupLayouts.GLOBALS), so stars.vsh can ask
   # for the game's clock. The game draws 780 quads for its stars and gives the shader nothing else to draw
   # with: the number of a quad is all that tells one from another, and it is enough to give each quad a
   # place of its own from a table.
@@ -132,17 +101,10 @@ frs:
       reach: The plants shall not move a vertex by more than 10 % of a block.
 
   # The game tells no shader that it is raining. The light map's sky factor drops and the fog colour turns
-  # grey, so the weather is an estimate from those two, which the fog and the clouds use.
+  # grey, so the weather is an estimate from those two, which the fog uses.
   shader.effects.weather:
     statements:
       estimate: The weather shall estimate how overcast the sky is from the fog colour and the sky light of the game.
-
-  # The game sends the cloud shaders a face only for a cell that the cloud texture fills. The clouds effect
-  # draws its own clouds anywhere in the layer, so it needs a face everywhere.
-  shader.cloudmap:
-    serves: [enjoy-the-view.artificial-scenes]
-    statements:
-      fill: The cloudmap shall fill every cell of the cloud texture of the game.
 
   shader.composer:
     serves: [change-the-look.version-port]
@@ -168,7 +130,7 @@ frs:
   shader.command:
     serves: [change-the-look.slow-feedback]
     statements:
-      run: The command shall build the pack for one season.
+      run: The command shall build the pack.
       quick: The command shall not take more than 5 seconds to build the pack.
 
 constraints:
@@ -181,15 +143,8 @@ constraints:
 
   # Files are read by vanilla, written by pack, and the compiler is run by validator. Everything between
   # them is a calculation, so that it can be tested without the game or the disk.
-  pure-seasons:
-    on: shader.seasons
-    serves: [change-the-look.slow-feedback]
-    check: effects
-    with:
-      allow: []
-
-  pure-cloudmap:
-    on: shader.cloudmap
+  pure-autumn:
+    on: shader.autumn
     serves: [change-the-look.slow-feedback]
     check: effects
     with:

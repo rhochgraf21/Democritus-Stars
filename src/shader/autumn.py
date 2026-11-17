@@ -1,14 +1,13 @@
-"""The colours a season gives grass and leaves, as the three colour maps the game tints them with.
+"""The colours autumn gives grass and leaves, as the three colour maps the game tints them with.
 
 The game looks the tint of grass and of leaves up in three textures, by the temperature and the humidity
-of the biome. A season is a recipe that repaints those textures. The recipe is worked in Oklch, where a
+of the biome. Autumn is a recipe that repaints those textures. The recipe is worked in Oklch, where a
 colour is a lightness, a chroma and a hue that the eye reads evenly, so that "30 degrees toward orange"
 means the same on a jungle green as on a taiga green.
 """
 
 import math
 from dataclasses import dataclass
-from enum import Enum
 from typing import NewType
 
 import deal
@@ -30,24 +29,15 @@ ChromaScale = NewType("ChromaScale", float)
 # How warm a biome is, from 0 for the coldest to 1 for the hottest, as the game's colour maps count it.
 Temperature = NewType("Temperature", float)
 
-# How much of a season a climate feels, from 0 for none to 1 for all of it.
+# How much of the autumn a climate feels, from 0 for none to 1 for all of it.
 Seasonality = NewType("Seasonality", float)
 
 # One colour of light before the screen's curve is applied, from 0 to 1 when a screen can show it.
 LinearLight = NewType("LinearLight", float)
 
 
-class Season(Enum):
-    """The time of year a pack is built for."""
-
-    SPRING = "spring"
-    SUMMER = "summer"
-    AUTUMN = "autumn"
-    WINTER = "winter"
-
-
 class MissingColourMap(Exception):
-    """A colour map that a season repaints was not among the textures given."""
+    """A colour map that autumn repaints was not among the textures given."""
 
 
 @dataclass(frozen=True)
@@ -61,7 +51,7 @@ class Oklch:
 
 @dataclass(frozen=True)
 class Shift:
-    """How a season moves a colour: the hue turned, the chroma scaled, the lightness raised.
+    """How autumn moves a colour: the hue turned, the chroma scaled, the lightness raised.
 
     A negative turn takes a leaf green toward yellow, orange and red; a positive one toward blue.
     """
@@ -73,7 +63,7 @@ class Shift:
 
 @dataclass(frozen=True)
 class Recipe:
-    """A season's look: the shift of each colour map, where the climate feels the whole season."""
+    """The look of autumn: the shift of each colour map, where the climate feels the whole of it."""
 
     grass: Shift
     foliage: Shift
@@ -84,39 +74,23 @@ GRASS_MAP = TexturePath("colormap/grass.png")
 FOLIAGE_MAP = TexturePath("colormap/foliage.png")
 DRY_FOLIAGE_MAP = TexturePath("colormap/dry_foliage.png")
 
-# The three colour maps a season gives, which are the textures to ask the game for.
+# The three colour maps autumn repaints, which are the textures to ask the game for.
 COLOUR_MAPS: tuple[TexturePath, ...] = (GRASS_MAP, FOLIAGE_MAP, DRY_FOLIAGE_MAP)
 
 UNCHANGED = Shift(hue_turn=Hue(0.0), chroma_scale=ChromaScale(1.0), lightness_shift=Lightness(0.0))
 
-# The recipes were chosen by eye, on swatches of the common biomes beside the game's own colours. Each is
-# kept small enough that a forest still reads as a forest and not as a filter laid over one.
-RECIPES: dict[Season, Recipe] = {
-    # New leaves are thin and yellow-green, and lighter than the leaves of July.
-    Season.SPRING: Recipe(
-        grass=Shift(hue_turn=Hue(-5.0), chroma_scale=ChromaScale(1.05), lightness_shift=Lightness(0.03)),
-        foliage=Shift(hue_turn=Hue(-7.0), chroma_scale=ChromaScale(1.0), lightness_shift=Lightness(0.05)),
-        dry_foliage=Shift(hue_turn=Hue(6.0), chroma_scale=ChromaScale(0.9), lightness_shift=Lightness(0.02)),
-    ),
-    # The game's own colours are a summer already.
-    Season.SUMMER: Recipe(grass=UNCHANGED, foliage=UNCHANGED, dry_foliage=UNCHANGED),
-    # The full turn takes a leaf green to red. A warmer climate gets part of it, so its trees stop at
-    # gold or orange: the variety of an autumn forest comes from the biomes and not from noise.
-    Season.AUTUMN: Recipe(
-        grass=Shift(hue_turn=Hue(-25.0), chroma_scale=ChromaScale(0.7), lightness_shift=Lightness(-0.03)),
-        foliage=Shift(hue_turn=Hue(-90.0), chroma_scale=ChromaScale(0.78), lightness_shift=Lightness(-0.08)),
-        dry_foliage=Shift(hue_turn=Hue(-14.0), chroma_scale=ChromaScale(1.2), lightness_shift=Lightness(-0.02)),
-    ),
-    # Frost takes the colour out before it takes the green: grey-green and pale, a little toward blue.
-    Season.WINTER: Recipe(
-        grass=Shift(hue_turn=Hue(8.0), chroma_scale=ChromaScale(0.3), lightness_shift=Lightness(0.05)),
-        foliage=Shift(hue_turn=Hue(10.0), chroma_scale=ChromaScale(0.3), lightness_shift=Lightness(-0.01)),
-        dry_foliage=Shift(hue_turn=Hue(0.0), chroma_scale=ChromaScale(0.5), lightness_shift=Lightness(0.04)),
-    ),
-}
+# Chosen by eye, on swatches of the common biomes beside the game's own colours, and kept small enough
+# that a forest still reads as a forest and not as a filter laid over one. The full turn takes a leaf
+# green to red. A warmer climate gets part of it, so its trees stop at gold or orange: the variety of an
+# autumn forest comes from the biomes and not from noise.
+AUTUMN = Recipe(
+    grass=Shift(hue_turn=Hue(-25.0), chroma_scale=ChromaScale(0.7), lightness_shift=Lightness(-0.03)),
+    foliage=Shift(hue_turn=Hue(-90.0), chroma_scale=ChromaScale(0.78), lightness_shift=Lightness(-0.08)),
+    dry_foliage=Shift(hue_turn=Hue(-14.0), chroma_scale=ChromaScale(1.2), lightness_shift=Lightness(-0.02)),
+)
 
 # A jungle has no autumn and a birch wood has all of one. Between these two temperatures a climate feels
-# a growing share of the season; the game gives a jungle 0.95 and a birch forest 0.6.
+# a growing share of the autumn; the game gives a jungle 0.95 and a birch forest 0.6.
 TROPICAL = Temperature(0.95)
 TEMPERATE = Temperature(0.6)
 
@@ -294,7 +268,7 @@ def pixel_of(colour: Oklch, alpha: Channel) -> Pixel:
 @deal.ensure(lambda temperature, result: (result == NO_SEASON) == (temperature >= TROPICAL))
 @deal.ensure(lambda temperature, result: (result == WHOLE_SEASON) == (temperature <= TEMPERATE))
 def seasonality(temperature: Temperature) -> Seasonality:
-    """How much of a season a climate of this temperature feels."""
+    """How much of the autumn a climate of this temperature feels."""
     share = (TROPICAL - temperature) / (TROPICAL - TEMPERATE)
     return Seasonality(min(max(share, NO_SEASON), WHOLE_SEASON))
 
@@ -315,7 +289,7 @@ def seasonality(temperature: Temperature) -> Seasonality:
     )
 )
 def partial(shift: Shift, share: Seasonality) -> Shift:
-    """The part of a shift that a climate feeling this share of the season gets."""
+    """The part of a shift that a climate feeling this share of the autumn gets."""
     return Shift(
         hue_turn=Hue(shift.hue_turn * share),
         chroma_scale=ChromaScale(UNCHANGED.chroma_scale + (shift.chroma_scale - UNCHANGED.chroma_scale) * share),
@@ -384,23 +358,21 @@ def repainted(texture: Texture, shift: Shift) -> Texture:
 
 
 @deal.has()
-@deal.pre(lambda season, vanilla: all(is_well_formed(texture) for texture in vanilla))
+@deal.pre(lambda vanilla: all(is_well_formed(texture) for texture in vanilla))
 @deal.raises(MissingColourMap)
-@deal.ensure(lambda season, vanilla, result: tuple(texture.path for texture in result) == COLOUR_MAPS)
-@deal.ensure(lambda season, vanilla, result: all(
+@deal.ensure(lambda vanilla, result: tuple(texture.path for texture in result) == COLOUR_MAPS)
+@deal.ensure(lambda vanilla, result: all(
     (after.width, after.height, after.meta, tuple(p.alpha for p in after.pixels))
     == (before.width, before.height, before.meta, tuple(p.alpha for p in before.pixels))
     for after in result for before in vanilla if before.path == after.path
 ))
-@deal.ensure(lambda season, vanilla, result: season is not Season.SUMMER or all(t in vanilla for t in result))
-def colour_maps(season: Season, vanilla: tuple[Texture, ...]) -> tuple[Texture, ...]:
-    """The grass, foliage and dry foliage colour maps of a season, repainted from the game's own.
+def colour_maps(vanilla: tuple[Texture, ...]) -> tuple[Texture, ...]:
+    """The grass, foliage and dry foliage colour maps of autumn, repainted from the game's own.
 
     Textures that are not colour maps are passed over. MissingColourMap if one of the three is not given.
     """
-    recipe = RECIPES[season]
     given = {texture.path: texture for texture in vanilla}
-    shifts = {GRASS_MAP: recipe.grass, FOLIAGE_MAP: recipe.foliage, DRY_FOLIAGE_MAP: recipe.dry_foliage}
+    shifts = {GRASS_MAP: AUTUMN.grass, FOLIAGE_MAP: AUTUMN.foliage, DRY_FOLIAGE_MAP: AUTUMN.dry_foliage}
     missing = [path for path in COLOUR_MAPS if path not in given]
     if missing:
         raise MissingColourMap(f"the game's textures lack the colour map {missing[0]}")

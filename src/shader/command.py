@@ -1,6 +1,7 @@
-"""The one command that builds the pack for a season."""
+"""The one command that builds the pack."""
 
 import argparse
+import os
 import sys
 import time
 from collections.abc import Callable
@@ -10,10 +11,9 @@ from typing import NewType
 
 import deal
 
-from shader import cloudmap, composer, markers, pack, seasons, validator, vanilla
-from shader.effects import Effect, EffectName, clouds, lighting, sky, stars, weather
+from shader import autumn, composer, markers, pack, validator, vanilla
+from shader.effects import Effect, EffectName, lighting, sky, stars, weather
 from shader.pack import PackFolder
-from shader.seasons import Season
 from shader.validator import CompileFailure
 from shader.vanilla import Game, JarPath, ResourceFormat, ShaderFile, Texture, TexturePath
 
@@ -29,7 +29,36 @@ Moment = NewType("Moment", float)
 BUILT = ExitCode(0)
 NOT_BUILT = ExitCode(1)
 
-MINECRAFT = Path.home() / "Library/Application Support/minecraft"
+# What Python's sys.platform calls a system, such as "darwin".
+PlatformName = NewType("PlatformName", str)
+
+MAC = PlatformName("darwin")
+WINDOWS = PlatformName("win32")
+
+# The variable Windows keeps the roaming application data folder in, which is where the launcher installs.
+ROAMING_VARIABLE = "APPDATA"
+
+# What that variable holds: the path of the roaming folder, as Windows wrote it.
+RoamingFolder = NewType("RoamingFolder", str)
+
+
+@deal.has()
+# Off Windows the roaming folder plays no part, whatever the variable happens to hold.
+@deal.ensure(lambda _: _.platform == WINDOWS or _.result.is_relative_to(_.home))
+def game_folder(platform: PlatformName, home: Path, roaming: RoamingFolder | None) -> Path:
+    """Where the launcher keeps the game on a system, which is where a pack is read from and written to.
+
+    `roaming` is the roaming application data folder as Windows names it, or None where none is named.
+    """
+    if platform == MAC:
+        return home / "Library/Application Support/minecraft"
+    if platform == WINDOWS:
+        return (Path(roaming) if roaming else home / "AppData/Roaming") / ".minecraft"
+    # Linux, and any other Unix the game is made to run on, which follow Linux here.
+    return home / ".minecraft"
+
+
+MINECRAFT = game_folder(PlatformName(sys.platform), Path.home(), os.environ.get(ROAMING_VARIABLE))
 GAME_JAR = MINECRAFT / "versions/26.3/26.3.jar"
 PACK_FOLDER = MINECRAFT / "resourcepacks/zigdag-shaders"
 
@@ -38,7 +67,6 @@ EFFECTS: tuple[Callable[[], Effect], ...] = (
     lighting.effect,
     sky.effect,
     stars.effect,
-    clouds.effect,
     weather.effect,
 )
 
@@ -46,8 +74,7 @@ EFFECTS: tuple[Callable[[], Effect], ...] = (
 # error names the effect and the place, which is how a new game version says what it broke.
 REFUSALS = (
     vanilla.VanillaError,
-    seasons.MissingColourMap,
-    cloudmap.MissingCloudMap,
+    autumn.MissingColourMap,
     markers.MarkError,
     composer.ComposeError,
     validator.CompilerNotFound,
@@ -59,9 +86,8 @@ REFUSALS = (
 
 @dataclass(frozen=True)
 class Request:
-    """What the person asked to be built, from where, to where, and without which effects."""
+    """What the person asked to be built: from where, to where, and without which effects."""
 
-    season: Season
     jar: JarPath
     pack: PackFolder
     skipped: tuple[EffectName, ...]
@@ -87,13 +113,6 @@ class Outcome:
 
 
 @deal.has()
-@deal.post(lambda result: len(result) == len(Season))
-def season_names() -> tuple[str, ...]:
-    """The seasons as the person types them."""
-    return tuple(season.name.lower() for season in Season)
-
-
-@deal.has()
 @deal.post(lambda result: len(result) == len(EFFECTS))
 def effect_names() -> tuple[str, ...]:
     """The effects as the person types them to leave one out."""
@@ -101,38 +120,30 @@ def effect_names() -> tuple[str, ...]:
 
 
 @deal.has()
-@deal.pre(lambda season, jar, folder, skipped: season in season_names())
 @deal.ensure(lambda _: _.result.jar == _.jar and _.result.pack == _.folder and len(_.result.skipped) == len(_.skipped))
-@deal.ensure(lambda _: _.result.season.name.lower() == _.season)
-def requested(season: str, jar: Path, folder: Path, skipped: list[str]) -> Request:
+def requested(jar: Path, folder: Path, skipped: list[str]) -> Request:
     """The person's words as a request."""
-    return Request(Season[season.upper()], JarPath(jar), PackFolder(folder), tuple(EffectName(name) for name in skipped))
+    return Request(JarPath(jar), PackFolder(folder), tuple(EffectName(name) for name in skipped))
 
 
 @deal.has()
-@deal.post(lambda result: set(seasons.COLOUR_MAPS) <= set(result) and set(markers.MARKED) <= set(result))
-@deal.post(lambda result: cloudmap.CLOUD_MAP in result)
+@deal.post(lambda result: set(autumn.COLOUR_MAPS) <= set(result) and set(markers.MARKED) <= set(result))
 def wanted() -> tuple[TexturePath, ...]:
     """The textures a build asks the game for."""
-    return (*seasons.COLOUR_MAPS, *markers.MARKED, cloudmap.CLOUD_MAP)
+    return (*autumn.COLOUR_MAPS, *markers.MARKED)
 
 
 @deal.has()
-# The game as vanilla reads it: every texture has the pixels its size says, which the seasons count on.
-@deal.pre(lambda request, game: all(seasons.is_well_formed(texture) for texture in game.textures))
-@deal.raises(seasons.MissingColourMap, cloudmap.MissingCloudMap, markers.MarkError, composer.ComposeError)
+# The game as vanilla reads it: every texture has the pixels its size says, which the autumn colours count on.
+@deal.pre(lambda request, game: all(autumn.is_well_formed(texture) for texture in game.textures))
+@deal.raises(autumn.MissingColourMap, markers.MarkError, composer.ComposeError)
 @deal.ensure(lambda _: _.result.vanilla == _.game.shaders and _.result.resource_format == _.game.resource_format)
-@deal.ensure(lambda _: (clouds.NAME in _.request.skipped) != any(t.path == cloudmap.CLOUD_MAP for t in _.result.textures))
 def planned(request: Request, game: Game) -> Build:
-    """The pack for the request: the season's colours, the marked textures and the effects on the game's shaders."""
-    colours = seasons.colour_maps(request.season, game.textures)
+    """The pack for the request: the autumn colours, the marked textures and the effects on the game's shaders."""
+    colours = autumn.colour_maps(game.textures)
     marked = markers.mark(tuple(texture for texture in game.textures if texture.path in markers.MARKED))
     effects = tuple(made for made in (make() for make in EFFECTS) if made.name not in request.skipped)
-    # The filled cloud map under the game's own cloud shaders is one slab of cloud over the whole sky, so
-    # the map goes only where the clouds effect goes.
-    cloud_map = () if clouds.NAME in request.skipped else (cloudmap.filled(game.textures),)
-    textures = colours + marked + cloud_map
-    return Build(game.resource_format, game.shaders, composer.compose(game.shaders, effects), textures)
+    return Build(game.resource_format, game.shaders, composer.compose(game.shaders, effects), colours + marked)
 
 
 @deal.has()
@@ -148,8 +159,7 @@ def judged(
         told = tuple(Line(f"{failure.shader} {failure.defines}:\n{failure.message}") for failure in failures)
         return Outcome(False, (*told, Line(f"not written: {len(failures)} shaders do not compile")), NOT_BUILT)
     summary = Line(
-        f"{request.pack}: {request.season.name.lower()}, game {game.version}, "
-        f"{len(build.shaders)} shaders, {ended - started:.1f} s"
+        f"{request.pack}: game {game.version}, {len(build.shaders)} shaders, {ended - started:.1f} s"
     )
     return Outcome(True, (summary,), BUILT)
 
@@ -181,12 +191,11 @@ def build(request: Request) -> ExitCode:
 def main() -> int:
     """Build the pack the command line asks for."""
     parser = argparse.ArgumentParser(prog="shader", description=__doc__)
-    parser.add_argument("--season", required=True, choices=season_names())
     parser.add_argument("--jar", type=Path, default=GAME_JAR)
     parser.add_argument("--pack", type=Path, default=PACK_FOLDER)
     parser.add_argument("--skip", action="append", default=[], choices=effect_names(), help="leave an effect out")
     arguments = parser.parse_args()
-    return build(requested(arguments.season, arguments.jar, arguments.pack, arguments.skip))
+    return build(requested(arguments.jar, arguments.pack, arguments.skip))
 
 
 if __name__ == "__main__":

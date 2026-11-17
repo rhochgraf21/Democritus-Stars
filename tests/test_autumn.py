@@ -1,4 +1,4 @@
-"""The seasons repaint the game's three colour maps, and each season reads as itself."""
+"""Autumn repaints the game's three colour maps, and reads as autumn."""
 
 import math
 
@@ -7,12 +7,12 @@ from hypothesis import given
 from hypothesis import strategies as st
 from zigdag import verifies
 
-from shader.seasons import (
+from shader.autumn import (
+    AUTUMN,
     COLOUR_MAPS,
     DRY_FOLIAGE_MAP,
     FOLIAGE_MAP,
     GRASS_MAP,
-    RECIPES,
     TEMPERATE,
     TROPICAL,
     UNCHANGED,
@@ -22,7 +22,6 @@ from shader.seasons import (
     Lightness,
     MissingColourMap,
     Oklch,
-    Season,
     Seasonality,
     Shift,
     Temperature,
@@ -46,7 +45,6 @@ LITTER_BROWN = Pixel(Channel(163), Channel(113), Channel(70), OPAQUE)
 channels = st.integers(min_value=0, max_value=255).map(Channel)
 pixels = st.builds(Pixel, channels, channels, channels, channels)
 metas = st.none() | st.text(max_size=8).map(TextureMeta)
-seasons = st.sampled_from(Season)
 
 
 @st.composite
@@ -70,22 +68,32 @@ def one_colour_each(width: int = 1) -> tuple[Texture, ...]:
             flat(DRY_FOLIAGE_MAP, LITTER_BROWN, width))
 
 
-def painted(season: Season, path: TexturePath, width: int = 1) -> tuple[Oklch, ...]:
-    """What a season makes of the typical colour of one map, column by column."""
-    by_path = {texture.path: texture for texture in colour_maps(season, one_colour_each(width))}
+def colours_of(maps: tuple[Texture, ...], path: TexturePath) -> tuple[Oklch, ...]:
+    by_path = {texture.path: texture for texture in maps}
     return tuple(oklch(pixel) for pixel in by_path[path].pixels)
 
 
-@verifies("shader.seasons#colours")
+def painted(path: TexturePath, width: int = 1) -> tuple[Oklch, ...]:
+    """What autumn makes of the typical colour of one map, column by column."""
+    return colours_of(colour_maps(one_colour_each(width)), path)
+
+
+def unpainted(path: TexturePath) -> Oklch:
+    """The typical colour of one map as the game has it."""
+    (colour,) = colours_of(one_colour_each(), path)
+    return colour
+
+
+@verifies("shader.autumn#colours")
 def test_the_three_colour_maps_are_the_ones_the_game_tints_with() -> None:
-    given = tuple(texture.path for texture in colour_maps(Season.AUTUMN, one_colour_each()))
+    given = tuple(texture.path for texture in colour_maps(one_colour_each()))
     assert given == COLOUR_MAPS == ("colormap/grass.png", "colormap/foliage.png", "colormap/dry_foliage.png")
 
 
-@verifies("shader.seasons#colours")
-@given(seasons, vanilla_maps)
-def test_a_season_keeps_the_path_size_alpha_and_meta_of_each_map(season: Season, vanilla: tuple[Texture, ...]) -> None:
-    result = colour_maps(season, vanilla)
+@verifies("shader.autumn#colours")
+@given(vanilla_maps)
+def test_autumn_keeps_the_path_size_alpha_and_meta_of_each_map(vanilla: tuple[Texture, ...]) -> None:
+    result = colour_maps(vanilla)
     assert len(result) == len(vanilla)
     for before, after in zip(vanilla, result, strict=True):
         assert (after.path, after.width, after.height, after.meta) == (
@@ -96,86 +104,47 @@ def test_a_season_keeps_the_path_size_alpha_and_meta_of_each_map(season: Season,
                    for pixel in after.pixels for channel in (pixel.red, pixel.green, pixel.blue))
 
 
-@verifies("shader.seasons#colours")
-@given(vanilla_maps)
-def test_summer_is_the_games_own_colours(vanilla: tuple[Texture, ...]) -> None:
-    assert colour_maps(Season.SUMMER, vanilla) == vanilla
+@verifies("shader.autumn#colours")
+@given(vanilla_maps, textures(TexturePath("block/stone.png")))
+def test_other_textures_and_their_order_change_nothing(vanilla: tuple[Texture, ...], other: Texture) -> None:
+    assert colour_maps((other, *reversed(vanilla))) == colour_maps(vanilla)
 
 
-@verifies("shader.seasons#colours")
-@given(seasons, vanilla_maps, textures(TexturePath("block/stone.png")))
-def test_other_textures_and_their_order_change_nothing(
-    season: Season, vanilla: tuple[Texture, ...], other: Texture
-) -> None:
-    assert colour_maps(season, (other, *reversed(vanilla))) == colour_maps(season, vanilla)
-
-
-@verifies("shader.seasons#colours")
+@verifies("shader.autumn#colours")
 @pytest.mark.parametrize("lacking", COLOUR_MAPS)
-@pytest.mark.parametrize("season", Season)
-def test_a_missing_colour_map_is_named(season: Season, lacking: TexturePath) -> None:
+def test_a_missing_colour_map_is_named(lacking: TexturePath) -> None:
     given_maps = tuple(texture for texture in one_colour_each() if texture.path != lacking)
     with pytest.raises(MissingColourMap, match=lacking):
-        colour_maps(season, given_maps)
+        colour_maps(given_maps)
 
 
-@verifies("shader.seasons#colours")
+@verifies("shader.autumn#colours")
 def test_the_first_missing_colour_map_is_the_one_named() -> None:
     with pytest.raises(MissingColourMap) as raised:
-        colour_maps(Season.AUTUMN, ())
+        colour_maps(())
     assert str(raised.value) == "the game's textures lack the colour map colormap/grass.png"
 
 
-@verifies("shader.seasons#colours")
-def test_four_seasons_give_four_different_maps_of_each_kind() -> None:
-    for index in range(len(COLOUR_MAPS)):
-        assert len({colour_maps(season, one_colour_each())[index] for season in Season}) == len(Season)
-
-
-@verifies("shader.seasons#colours")
-def test_autumn_foliage_is_redder_than_summer_foliage() -> None:
-    summer = colour_maps(Season.SUMMER, one_colour_each())[1].pixels[0]
-    autumn = colour_maps(Season.AUTUMN, one_colour_each())[1].pixels[0]
-    assert autumn.red > summer.red + 50
-    assert autumn.green < summer.green - 50
+@verifies("shader.autumn#colours")
+def test_autumn_foliage_is_redder_than_the_games_foliage() -> None:
+    autumn = colour_maps(one_colour_each())[1].pixels[0]
+    assert autumn.red > LEAF_GREEN.red + 50
+    assert autumn.green < LEAF_GREEN.green - 50
     assert autumn.red > autumn.green > autumn.blue
 
 
-@verifies("shader.seasons#colours")
-def test_autumn_grass_is_drier_and_more_olive_than_summer_grass() -> None:
-    (summer,), (autumn,) = painted(Season.SUMMER, GRASS_MAP), painted(Season.AUTUMN, GRASS_MAP)
-    assert autumn.chroma < summer.chroma
-    assert 100 < autumn.hue < summer.hue - 15
-    assert autumn.lightness < summer.lightness
+@verifies("shader.autumn#colours")
+def test_autumn_grass_is_drier_and_more_olive_than_the_games_grass() -> None:
+    (autumn,), game = painted(GRASS_MAP), unpainted(GRASS_MAP)
+    assert autumn.chroma < game.chroma
+    assert 100 < autumn.hue < game.hue - 15
+    assert autumn.lightness < game.lightness
 
 
-@verifies("shader.seasons#colours")
-@pytest.mark.parametrize("path", COLOUR_MAPS)
-def test_winter_is_less_saturated_than_summer(path: TexturePath) -> None:
-    (summer,), (winter,) = painted(Season.SUMMER, path), painted(Season.WINTER, path)
-    assert winter.chroma < summer.chroma * 0.6
-
-
-@verifies("shader.seasons#colours")
-def test_winter_grass_is_paler_and_colder_than_summer_grass() -> None:
-    (summer,), (winter,) = painted(Season.SUMMER, GRASS_MAP), painted(Season.WINTER, GRASS_MAP)
-    assert winter.lightness > summer.lightness + 0.03
-    assert summer.hue < winter.hue < summer.hue + 30
-
-
-@verifies("shader.seasons#colours")
-@pytest.mark.parametrize("path", [GRASS_MAP, FOLIAGE_MAP])
-def test_spring_is_lighter_and_more_yellow_green_and_no_duller_than_summer(path: TexturePath) -> None:
-    (summer,), (spring,) = painted(Season.SUMMER, path), painted(Season.SPRING, path)
-    assert spring.lightness > summer.lightness + 0.02
-    assert summer.hue - 15 < spring.hue < summer.hue
-    assert spring.chroma > summer.chroma * 0.95
-
-
-@verifies("shader.seasons#colours")
+@verifies("shader.autumn#colours")
 def test_an_autumn_forest_is_varied_because_warm_climates_turn_less() -> None:
     columns = 20
-    across = painted(Season.AUTUMN, FOLIAGE_MAP, columns)
+    across = painted(FOLIAGE_MAP, columns)
     assert across[0] == oklch(LEAF_GREEN)  # the hottest column is a jungle, which has no autumn
     hues = [colour.hue for colour in across]
     assert hues == sorted(hues, reverse=True)  # the colder, the further turned toward red
@@ -183,17 +152,16 @@ def test_an_autumn_forest_is_varied_because_warm_climates_turn_less() -> None:
     assert hues[0] - hues[-1] > 80
 
 
-@verifies("shader.seasons#colours")
-@pytest.mark.parametrize("season", Season)
-def test_the_hottest_climate_keeps_the_games_colours_in_every_season(season: Season) -> None:
+@verifies("shader.autumn#colours")
+def test_the_hottest_climate_keeps_the_games_colours() -> None:
     columns = 20
-    for texture, vanilla in zip(colour_maps(season, one_colour_each(columns)), one_colour_each(columns), strict=True):
+    for texture, vanilla in zip(colour_maps(one_colour_each(columns)), one_colour_each(columns), strict=True):
         assert texture.pixels[0] == vanilla.pixels[0]
 
 
-@verifies("shader.seasons#colours")
+@verifies("shader.autumn#colours")
 def test_each_column_gets_the_share_of_the_shift_that_its_temperature_feels() -> None:
-    shift = RECIPES[Season.AUTUMN].foliage
+    shift = AUTUMN.foliage
     translucent = Pixel(LEAF_GREEN.red, LEAF_GREEN.green, LEAF_GREEN.blue, Channel(7))
     texture = Texture(FOLIAGE_MAP, PixelCount(4), PixelCount(2), (LEAF_GREEN, GRASS_GREEN, translucent, LEAF_GREEN) * 2,
                       TextureMeta("{}"))
@@ -208,7 +176,7 @@ def test_each_column_gets_the_share_of_the_shift_that_its_temperature_feels() ->
     assert result.pixels[2].alpha == 7
 
 
-@verifies("shader.seasons#colours")
+@verifies("shader.autumn#colours")
 def test_a_climate_feels_no_season_when_tropical_and_all_of_it_when_temperate() -> None:
     assert seasonality(TROPICAL) == 0.0
     assert seasonality(Temperature(1.0)) == 0.0
@@ -219,7 +187,7 @@ def test_a_climate_feels_no_season_when_tropical_and_all_of_it_when_temperate() 
     assert (TROPICAL, TEMPERATE) == (0.95, 0.6)
 
 
-@verifies("shader.seasons#colours")
+@verifies("shader.autumn#colours")
 def test_a_share_of_a_shift_is_that_share_of_each_of_its_parts() -> None:
     shift = Shift(Hue(-90.0), ChromaScale(0.5), Lightness(-0.25))
     half = partial(shift, Seasonality(0.5))
@@ -230,7 +198,7 @@ def test_a_share_of_a_shift_is_that_share_of_each_of_its_parts() -> None:
     assert UNCHANGED == Shift(Hue(0.0), ChromaScale(1.0), Lightness(0.0))
 
 
-@verifies("shader.seasons#colours")
+@verifies("shader.autumn#colours")
 def test_a_shift_turns_the_hue_scales_the_chroma_and_raises_the_lightness() -> None:
     colour = Oklch(Lightness(0.5), Chroma(0.25), Hue(30.0))
     moved = shifted(colour, Shift(Hue(-40.0), ChromaScale(0.5), Lightness(0.25)))
@@ -240,13 +208,13 @@ def test_a_shift_turns_the_hue_scales_the_chroma_and_raises_the_lightness() -> N
     assert shifted(colour, Shift(Hue(330.0), ChromaScale(1.0), Lightness(0.0))).hue == pytest.approx(0.0)
 
 
-@verifies("shader.seasons#colours")
+@verifies("shader.autumn#colours")
 @given(pixels)
 def test_a_pixel_comes_back_from_its_colour_unchanged(pixel: Pixel) -> None:
     assert pixel_of(oklch(pixel), pixel.alpha) == pixel
 
 
-@verifies("shader.seasons#colours")
+@verifies("shader.autumn#colours")
 @pytest.mark.parametrize(
     ("red", "green", "blue", "lightness", "chroma", "hue"),
     [
@@ -265,7 +233,7 @@ def test_the_colours_of_known_pixels(red: int, green: int, blue: int, lightness:
     assert colour.hue == pytest.approx(hue, abs=0.5)
 
 
-@verifies("shader.seasons#colours")
+@verifies("shader.autumn#colours")
 def test_greys_have_no_chroma_and_run_from_black_to_white() -> None:
     black, white = (oklch(Pixel(Channel(v), Channel(v), Channel(v), OPAQUE)) for v in (0, 255))
     assert (black.lightness, black.chroma) == (0.0, 0.0)
@@ -274,7 +242,7 @@ def test_greys_have_no_chroma_and_run_from_black_to_white() -> None:
     assert pixel_of(Oklch(Lightness(0.0), Chroma(0.0), Hue(0.0)), OPAQUE) == Pixel(*(Channel(0),) * 3, OPAQUE)
 
 
-@verifies("shader.seasons#colours")
+@verifies("shader.autumn#colours")
 @given(
     st.floats(min_value=0.3, max_value=0.9),
     st.floats(min_value=0.35, max_value=1.0),
