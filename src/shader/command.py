@@ -11,7 +11,7 @@ from typing import NewType
 
 import deal
 
-from shader import autumn, composer, markers, pack, validator, vanilla
+from shader import composer, markers, pack, validator, vanilla
 from shader.effects import Effect, EffectName, lighting, sky, stars, weather
 from shader.pack import PackFolder
 from shader.validator import CompileFailure
@@ -74,7 +74,6 @@ EFFECTS: tuple[Callable[[], Effect], ...] = (
 # error names the effect and the place, which is how a new game version says what it broke.
 REFUSALS = (
     vanilla.VanillaError,
-    autumn.MissingColourMap,
     markers.MarkError,
     composer.ComposeError,
     validator.CompilerNotFound,
@@ -127,23 +126,20 @@ def requested(jar: Path, folder: Path, skipped: list[str]) -> Request:
 
 
 @deal.has()
-@deal.post(lambda result: set(autumn.COLOUR_MAPS) <= set(result) and set(markers.MARKED) <= set(result))
+@deal.post(lambda result: set(markers.MARKED) <= set(result))
 def wanted() -> tuple[TexturePath, ...]:
     """The textures a build asks the game for."""
-    return (*autumn.COLOUR_MAPS, *markers.MARKED)
+    return markers.MARKED
 
 
 @deal.has()
-# The game as vanilla reads it: every texture has the pixels its size says, which the autumn colours count on.
-@deal.pre(lambda request, game: all(autumn.is_well_formed(texture) for texture in game.textures))
-@deal.raises(autumn.MissingColourMap, markers.MarkError, composer.ComposeError)
+@deal.raises(markers.MarkError, composer.ComposeError)
 @deal.ensure(lambda _: _.result.vanilla == _.game.shaders and _.result.resource_format == _.game.resource_format)
 def planned(request: Request, game: Game) -> Build:
-    """The pack for the request: the autumn colours, the marked textures and the effects on the game's shaders."""
-    colours = autumn.colour_maps(game.textures)
+    """The pack for the request: the marked textures and the effects on the game's shaders."""
     marked = markers.mark(tuple(texture for texture in game.textures if texture.path in markers.MARKED))
     effects = tuple(made for made in (make() for make in EFFECTS) if made.name not in request.skipped)
-    return Build(game.resource_format, game.shaders, composer.compose(game.shaders, effects), colours + marked)
+    return Build(game.resource_format, game.shaders, composer.compose(game.shaders, effects), marked)
 
 
 @deal.has()

@@ -10,11 +10,6 @@ frs:
     statements:
       read: The vanilla shall read the shaders and the textures of one Minecraft version.
 
-  shader.autumn:
-    serves: [enjoy-the-view.artificial-scenes]
-    statements:
-      colours: The autumn shall give the grass, foliage and dry foliage colour maps the colours of autumn.
-
   # terrain.vsh in 26.3 is given a position, a colour, a texture coordinate and a light level: nothing says
   # which block a surface belongs to. The texture is the only thing the pack controls that reaches the shader.
   # Water carries its mark in alpha. Leaves and plants cannot: 26.3 draws any texture holding an alpha other
@@ -143,13 +138,6 @@ constraints:
 
   # Files are read by vanilla, written by pack, and the compiler is run by validator. Everything between
   # them is a calculation, so that it can be tested without the game or the disk.
-  pure-autumn:
-    on: shader.autumn
-    serves: [change-the-look.slow-feedback]
-    check: effects
-    with:
-      allow: []
-
   pure-markers:
     on: shader.markers
     serves: [change-the-look.slow-feedback]

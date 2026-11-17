@@ -10,7 +10,7 @@ import pytest
 
 from shader.command import BUILT, GAME_JAR, MAC, NOT_BUILT, WINDOWS, PlatformName, RoamingFolder, build, game_folder, requested
 from shader.pack import PACK_META, SHADERS, TEXTURES
-from shader.autumn import COLOUR_MAPS
+from shader.markers import MARKED
 
 # The build's limit, from the requirement.
 SECONDS_ALLOWED = 5.0
@@ -28,7 +28,7 @@ def test_a_build_writes_the_pack(jar: Path, tmp_path: Path) -> None:
     assert build(requested(jar, folder, [])) == BUILT
     assert (folder / PACK_META).is_file()
     assert (folder / SHADERS / LIGHT_MAP).is_file()
-    assert all((folder / TEXTURES / colour_map).is_file() for colour_map in COLOUR_MAPS)
+    assert all((folder / TEXTURES / marked).is_file() for marked in MARKED)
 
 
 def test_a_missing_game_is_said_plainly_and_nothing_is_written(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
