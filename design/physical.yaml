@@ -20,3 +20,22 @@ shader.markers:
   - shader.markers.Probe
 shader.seasons: [shader.seasons, shader.seasons.Season]
 shader.validator: [shader.validator, shader.validator.CompileFailure]
+shader.effects.clouds.noise:
+  - shader.effects.clouds.noise
+  - shader.effects.clouds.noise.LayerPlace
+  - shader.effects.clouds.noise.Lattice
+shader.effects.clouds.forms: [shader.effects.clouds.forms, shader.effects.clouds.forms.Column]
+shader.effects.stars.catalogue:
+  - shader.effects.stars.catalogue
+  - shader.effects.stars.catalogue.CatalogueStar
+shader.effects.stars.figures:
+  - shader.effects.stars.figures
+  - shader.effects.stars.figures.FigureLine
+  - shader.effects.stars.figures.SkyPlace
+shader.effects.stars.galaxy:
+  - shader.effects.stars.galaxy
+  - shader.effects.stars.galaxy.GalacticDirection
+  - shader.effects.stars.galaxy.Glow
+  - shader.effects.stars.galaxy.Satellite
+  - shader.effects.stars.galaxy.StarSheet
+  - shader.effects.stars.galaxy.Bend

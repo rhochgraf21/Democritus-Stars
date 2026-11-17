@@ -56,18 +56,66 @@ frs:
       density: The fog shall move the colour of each terrain surface toward the fog colour by a density that grows with the distance to the surface and falls with the height of the surface.
       no-wall: The fog shall not change by more than 1 % between two surfaces 1 block apart.
 
-  # The cloud pass, with the game's own cloud cells. It is drawn after the stars, it is told where the
-  # clouds have drifted to and what colour the weather makes them, and the game hides it behind terrain.
-  # A layer drawn in sky.fsh was the other way: that shader is told no time, so its clouds could not move.
+  # The cloud pass. The game hides it behind terrain, fades it with distance and colours it for the hour
+  # and the weather. Its pipeline in 26.3 is given the Globals block (RenderPipelines: CLOUDS is built on
+  # the snippet that holds BindGroupLayouts.GLOBALS, and CloudRenderer binds the default uniforms), so the
+  # cloud shaders can ask for the camera's block and the game's clock though the game's own text does not.
+  # With those, a point of the layer knows where it is in the world, and a cloud can be drawn there from
+  # noise instead of from the game's cells. The cells are 12 blocks wide and either full or empty: no real
+  # cloud form fits that grid.
   shader.effects.clouds:
     statements:
-      puff: The clouds shall draw each cloud cell of the game as a puff that fades to nothing at the edge of the puff.
-      overlap: The clouds shall not leave a gap between the puffs of two cells that touch.
+      forms: The clouds shall draw the cloud layer as cirrus, altocumulus, cumulus and stratus clouds.
+      # The form comes from the place in the world, so that one sky holds more than one form.
+      region: The clouds shall not give every place of the world the same form of cloud.
+      drift: When the clock of the game advances, the clouds shall move the clouds from east to west.
+      # The clock runs from 0 to 1 in 24000 ticks and starts again.
+      wrap: The clouds shall not change the cloud layer when the clock of the game starts again.
+      # A cloud has a flat base and a top that stands above it, so that it is seen from the side as well.
+      height: The clouds shall not draw a cloud as a flat sheet.
+      # Finer than this a detail falls between pixels and flickers as the camera moves.
+      flicker: The clouds shall not draw a detail of a cloud that is narrower than 2 pixels.
 
-  # stars.vsh is told no time, so a star cannot twinkle. The number of a star is all that tells one from another.
+  shader.effects.clouds.noise:
+    statements:
+      level: The noise shall give each place of the cloud layer a level from 0 to 1.
+
+  shader.effects.clouds.forms:
+    statements:
+      column: The forms shall give the density and the height of the cloud over each place of the cloud layer.
+
+  shader.effects.clouds.sight:
+    statements:
+      meet: The sight shall find the cloud that a line of sight through the cloud layer meets.
+
+  # The star pipeline of 26.3 is given the Globals block, like the cloud pipelines, so stars.vsh can ask
+  # for the game's clock. The game draws 780 quads for its stars and gives the shader nothing else to draw
+  # with: the number of a quad is all that tells one from another, and it is enough to give each quad a
+  # place of its own from a table.
   shader.effects.stars:
     statements:
-      vary: The stars shall give each star a brightness and a colour from the number of the star.
+      real: The stars shall draw each star as one of the brightest stars of the real sky.
+      lines: The stars shall not draw a prominent constellation without the lines of the figure of the constellation.
+      twinkle: When the clock of the game advances, the stars shall change the brightness of each star.
+      wrap: The stars shall not change the brightness of a star when the clock of the game starts again.
+      # The star shaders are given no texture and the sky's shader is not told how far the night has turned
+      # the stars, so the Milky Way is drawn with the stars' own quads: six of them make a box around the
+      # camera, and the light is worked out for each pixel of it.
+      galaxy: The stars shall not draw the stars of a night without the light of the Milky Way behind the stars.
+
+  shader.effects.stars.catalogue:
+    statements:
+      list: The catalogue shall give the place, the magnitude and the colour index of each of the brightest stars of the real sky.
+
+  shader.effects.stars.figures:
+    statements:
+      lines: The figures shall give the lines of the figure of each prominent constellation.
+
+  # A model and not a photograph: the band, the bulge and the Magellanic Clouds are where they are in the
+  # real sky, and the star clouds, the dust and the nebulae are noise placed where the real ones gather.
+  shader.effects.stars.galaxy:
+    statements:
+      light: The galaxy shall give the colour of the light of the Milky Way in each direction of the real sky.
 
   shader.effects.water:
     statements:
@@ -88,6 +136,13 @@ frs:
   shader.effects.weather:
     statements:
       estimate: The weather shall estimate how overcast the sky is from the fog colour and the sky light of the game.
+
+  # The game sends the cloud shaders a face only for a cell that the cloud texture fills. The clouds effect
+  # draws its own clouds anywhere in the layer, so it needs a face everywhere.
+  shader.cloudmap:
+    serves: [enjoy-the-view.artificial-scenes]
+    statements:
+      fill: The cloudmap shall fill every cell of the cloud texture of the game.
 
   shader.composer:
     serves: [change-the-look.version-port]
@@ -128,6 +183,13 @@ constraints:
   # them is a calculation, so that it can be tested without the game or the disk.
   pure-seasons:
     on: shader.seasons
+    serves: [change-the-look.slow-feedback]
+    check: effects
+    with:
+      allow: []
+
+  pure-cloudmap:
+    on: shader.cloudmap
     serves: [change-the-look.slow-feedback]
     check: effects
     with:

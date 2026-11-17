@@ -78,7 +78,8 @@ def painted(season: Season, path: TexturePath, width: int = 1) -> tuple[Oklch, .
 
 @verifies("shader.seasons#colours")
 def test_the_three_colour_maps_are_the_ones_the_game_tints_with() -> None:
-    assert COLOUR_MAPS == ("colormap/grass.png", "colormap/foliage.png", "colormap/dry_foliage.png")
+    given = tuple(texture.path for texture in colour_maps(Season.AUTUMN, one_colour_each()))
+    assert given == COLOUR_MAPS == ("colormap/grass.png", "colormap/foliage.png", "colormap/dry_foliage.png")
 
 
 @verifies("shader.seasons#colours")

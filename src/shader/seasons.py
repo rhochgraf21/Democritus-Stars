@@ -131,6 +131,18 @@ CHANNEL_MAX = 255
 BLACK = Lightness(0.0)
 WHITE = Lightness(1.0)
 GREY = Chroma(0.0)
+
+# Far stronger than any colour there is, or any a shift makes of one: a real colour's chroma is under a
+# half. It is a limit only so that the arithmetic has one. A chroma without limit, cubed, is too large
+# for a float to hold.
+STRONGEST = Chroma(1000.0)
+
+# How far two numbers that should be the same may differ: the last bits of a sum round.
+_CLOSE = 1e-9
+
+# Larger than any angle, lightness or scale that a colour or a shift holds, by many times. It is a limit
+# only so that the arithmetic has one: two numbers near the largest a float holds add up to no number.
+_FARTHEST = 1e9
 FULL_TURN = Hue(360.0)
 
 # How far outside the screen's range a channel of linear light may fall and still count as shown. Turning
@@ -138,9 +150,11 @@ FULL_TURN = Hue(360.0)
 # even near black, so the slack never changes a pixel.
 GAMUT_SLACK = 1e-5
 
-# Each step halves the range of chroma searched: 12 steps find the strongest colour that shows to within
-# a four-thousandth of the chroma asked for, finer than a channel step.
-GAMUT_SEARCH_STEPS = 12
+# Each step halves the range of chroma searched: 16 steps find the strongest colour that shows to within
+# a sixty-thousandth of the chroma asked for. 12 steps were not enough near black, where a channel step
+# is a very small amount of light: the colour found stopped two channel steps short of the edge of what
+# a screen shows.
+GAMUT_SEARCH_STEPS = 16
 
 # The sRGB standard's curve between a stored channel and linear light.
 SRGB_LINEAR_BELOW = 0.04045
@@ -203,7 +217,16 @@ def _channel(light: LinearLight) -> Channel:
     return Channel(round(stored * CHANNEL_MAX))
 
 
+def _is_shift(shift: Shift) -> bool:
+    return all(abs(part) <= _FARTHEST for part in (shift.hue_turn, shift.chroma_scale, shift.lightness_shift))
+
+
+def _is_colour(colour: Oklch) -> bool:
+    return all(abs(part) <= _FARTHEST for part in (colour.lightness, colour.chroma, colour.hue))
+
+
 @deal.pure
+@deal.pre(lambda pixel: all(0 <= c <= CHANNEL_MAX for c in (pixel.red, pixel.green, pixel.blue, pixel.alpha)))
 @deal.post(lambda result: BLACK <= result.lightness and result.chroma >= GREY)
 @deal.post(lambda result: 0.0 <= result.hue < FULL_TURN)
 @deal.ensure(lambda pixel, result: pixel_of(result, pixel.alpha) == pixel)  # nothing is lost on the way
@@ -250,7 +273,8 @@ def _shown(colour: Oklch) -> Oklch:
 
 @deal.pure
 @deal.pre(lambda colour, alpha: 0 <= alpha <= CHANNEL_MAX)
-@deal.pre(lambda colour, alpha: BLACK <= colour.lightness <= WHITE and colour.chroma >= GREY)
+@deal.pre(lambda colour, alpha: BLACK <= colour.lightness <= WHITE and GREY <= colour.chroma <= STRONGEST)
+@deal.pre(lambda colour, alpha: math.isfinite(colour.hue))
 @deal.post(lambda result: all(0 <= c <= CHANNEL_MAX for c in (result.red, result.green, result.blue)))
 @deal.ensure(lambda colour, alpha, result: result.alpha == alpha)
 @deal.ensure(lambda colour, alpha, result: colour.chroma != GREY or result.red == result.green == result.blue)
@@ -276,13 +300,18 @@ def seasonality(temperature: Temperature) -> Seasonality:
 
 
 @deal.pure
-@deal.pre(lambda shift, share: NO_SEASON <= share <= WHOLE_SEASON)
+@deal.pre(lambda shift, share: NO_SEASON <= share <= WHOLE_SEASON and _is_shift(shift))
 @deal.ensure(lambda shift, share, result: share != NO_SEASON or result == UNCHANGED)
 @deal.ensure(lambda shift, share, result: math.isclose(result.hue_turn, shift.hue_turn * share))
 @deal.ensure(lambda shift, share, result: math.isclose(result.lightness_shift, shift.lightness_shift * share))
+# Close as numbers near the scale that changes nothing are close: a very small share of a scale added to
+# that 1 and taken from it again is lost in the 1's last bits, so the two cannot be held to a share of
+# their own size.
 @deal.ensure(
     lambda shift, share, result: math.isclose(
-        result.chroma_scale - UNCHANGED.chroma_scale, (shift.chroma_scale - UNCHANGED.chroma_scale) * share
+        result.chroma_scale - UNCHANGED.chroma_scale,
+        (shift.chroma_scale - UNCHANGED.chroma_scale) * share,
+        abs_tol=_CLOSE * max(1.0, abs(shift.chroma_scale)),
     )
 )
 def partial(shift: Shift, share: Seasonality) -> Shift:
@@ -295,7 +324,7 @@ def partial(shift: Shift, share: Seasonality) -> Shift:
 
 
 @deal.pure
-@deal.pre(lambda colour, shift: shift.chroma_scale >= 0.0)
+@deal.pre(lambda colour, shift: shift.chroma_scale >= 0.0 and _is_shift(shift) and _is_colour(colour))
 @deal.post(lambda result: BLACK <= result.lightness <= WHITE and 0.0 <= result.hue < FULL_TURN)
 @deal.ensure(lambda colour, shift, result: math.isclose(result.chroma, colour.chroma * shift.chroma_scale))
 @deal.ensure(lambda colour, shift, result: shift != UNCHANGED or not BLACK <= colour.lightness <= WHITE
@@ -305,16 +334,22 @@ def shifted(colour: Oklch, shift: Shift) -> Oklch:
     return Oklch(
         lightness=Lightness(min(max(colour.lightness + shift.lightness_shift, BLACK), WHITE)),
         chroma=Chroma(colour.chroma * shift.chroma_scale),
-        hue=Hue((colour.hue + shift.hue_turn) % FULL_TURN),
+        # Taken twice: an angle a hair under nothing comes out of the first as a whole turn, rounded up,
+        # and a hue is always less than one.
+        hue=Hue((colour.hue + shift.hue_turn) % FULL_TURN % FULL_TURN),
     )
 
 
-def _well_formed(texture: Texture) -> bool:
+@deal.pure
+@deal.ensure(lambda texture, result: not result or len(texture.pixels) % texture.width == 0)
+@deal.ensure(lambda texture, result: result or texture.width < 1 or len(texture.pixels) != texture.width * texture.height)
+def is_well_formed(texture: Texture) -> bool:
+    """Whether a texture has a width and as many pixels as its width and its height say."""
     return texture.width >= 1 and len(texture.pixels) == texture.width * texture.height
 
 
 @deal.pure
-@deal.pre(lambda texture, shift: _well_formed(texture))
+@deal.pre(lambda texture, shift: is_well_formed(texture) and _is_shift(shift))
 @deal.ensure(lambda texture, shift, result: (result.path, result.width, result.height, result.meta)
              == (texture.path, texture.width, texture.height, texture.meta))
 @deal.ensure(lambda texture, shift, result: [p.alpha for p in result.pixels] == [p.alpha for p in texture.pixels])
@@ -323,16 +358,21 @@ def repainted(texture: Texture, shift: Shift) -> Texture:
     """A colour map with each column moved by the part of a shift that its temperature feels."""
     # The game reads a map at the column (1 - temperature) of the way across, so the hot biomes are on
     # the left. Humidity, the other axis, is left to the game's own colours.
+    # Only the columns that hold a pixel: a map with no rows holds none however wide it says it is, and a
+    # generated map of no rows and a width of millions of millions kept this busy for good.
     by_column = tuple(
         partial(shift, seasonality(Temperature(1.0 - (column + PIXEL_CENTRE) / texture.width)))
-        for column in range(texture.width)
+        for column in range(min(texture.width, len(texture.pixels)))
     )
-    # A map is a smooth gradient, so a column holds the same pixel many times over. Each pair of pixel
-    # and column is worked out once, which makes the game's maps about four times quicker to repaint.
-    placed = tuple((pixel, index % texture.width) for index, pixel in enumerate(texture.pixels))
+    # A map is a smooth gradient, so a column holds the same pixel many times over, and every column hotter
+    # than tropical or cooler than temperate has the same shift as its neighbour. Each pair of pixel and
+    # shift is worked out once, which makes the game's maps about seven times quicker to repaint.
+    shifts = tuple(dict.fromkeys(by_column))
+    shift_of_column = tuple(shifts.index(part) for part in by_column)
+    placed = tuple((pixel, shift_of_column[index % texture.width]) for index, pixel in enumerate(texture.pixels))
     painted = {
-        (pixel, column): pixel_of(shifted(oklch(pixel), by_column[column]), pixel.alpha)
-        for pixel, column in set(placed)
+        (pixel, part): pixel_of(shifted(oklch(pixel), shifts[part]), pixel.alpha)
+        for pixel, part in set(placed)
     }
     return Texture(
         path=texture.path,
@@ -344,7 +384,7 @@ def repainted(texture: Texture, shift: Shift) -> Texture:
 
 
 @deal.has()
-@deal.pre(lambda season, vanilla: all(_well_formed(texture) for texture in vanilla))
+@deal.pre(lambda season, vanilla: all(is_well_formed(texture) for texture in vanilla))
 @deal.raises(MissingColourMap)
 @deal.ensure(lambda season, vanilla, result: tuple(texture.path for texture in result) == COLOUR_MAPS)
 @deal.ensure(lambda season, vanilla, result: all(
