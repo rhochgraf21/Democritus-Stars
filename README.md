@@ -1,7 +1,7 @@
 # Democritus' Stars
 
 > "No power and no treasure can outweigh the extension of our knowledge." 
-> - Democritus
+> -- Democritus
 
 ![Democritus](assets/democritus.jpg)
 
